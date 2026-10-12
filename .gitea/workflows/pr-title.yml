@@ -1,0 +1,41 @@
+name: PR title
+
+# Pull requests are squash-merged, so the title becomes the commit on main
+# and the changelog line (cliff.toml): it must start with a conventional
+# commit type. feat, fix and perf are listed in the changelog; the rest
+# aren't. Brackets and a missing space are fine too; the changelog writes
+# them all as "feat: …".
+#
+#   feat: SOPS and .env files in git repos
+#   fix(search): ctrl+r with empty results loads the scope
+#   feat!: rename config keys          (! marks a breaking change)
+#   [feat] install with a one-liner
+#   [fix]: hide values on blur
+#   docs:split the README
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  title:
+    name: Conventional title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|refactor|docs|test|ci|chore|build|style|revert'
+          scope='(\([a-z0-9._/-]+\))?'
+          if [[ "$TITLE" =~ ^\[($types)$scope!?\]!?:?[[:space:]]*(.*)$ ]] ||
+            [[ "$TITLE" =~ ^($types)$scope!?:[[:space:]]*(.*)$ ]]; then
+            what="${BASH_REMATCH[3]}"
+          fi
+          if [[ "${what:-}" =~ [^[:space:]] ]]; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::The title should start with a type, like \"feat: what changed\" or \"[feat] what changed\"; types: ${types//|/, }. feat, fix and perf titles are the changelog's lines. Got: $TITLE"
+            exit 1
+          fi

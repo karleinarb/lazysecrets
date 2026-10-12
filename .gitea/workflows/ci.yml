@@ -1,0 +1,53 @@
+name: CI
+
+# Pull requests into main: formatting, vet, staticcheck, tests, and a
+# build for each release platform. Not pushes to main: main's protection
+# rule only merges a pull request that's up to date with main, so what
+# lands there is what its pull request tested. Tags are release.yml's,
+# which tests again before publishing.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          # The runner mounts Go, the module cache and the build cache as
+          # volumes (nix-config, gitea-runner.nix): nothing to restore.
+          cache: false
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::not gofmt-formatted (run gofmt -w .):"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        # Pinned, so a new release can't fail CI on its own.
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: Build every release platform
+        run: |
+          for target in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64; do
+            echo "building $target"
+            CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build -o /dev/null ./cmd/lazysecrets
+          done

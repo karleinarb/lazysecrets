@@ -1,0 +1,72 @@
+# GoReleaser (https://goreleaser.com) builds and publishes a release when
+# .gitea/workflows/release.yml runs on a tag. Try it locally without
+# publishing anything (archives land in dist/):
+#
+#   goreleaser release --snapshot --clean
+version: 2
+
+project_name: lazysecrets
+
+# The token is GITEA_TOKEN, even if the runner sets GITHUB_TOKEN too.
+force_token: gitea
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - main: ./cmd/lazysecrets
+    binary: lazysecrets
+    # No cgo: every platform cross-compiles from one runner.
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+      - docs/*.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# The notes come from git-cliff (cliff.toml), passed with --release-notes,
+# so they match CHANGELOG.md. (Not changelog.disable: that ignores
+# --release-notes too, and the release gets no notes.)
+
+gitea_urls:
+  api: https://git.kebcloud.no/api/v1
+  download: https://git.kebcloud.no
+
+release:
+  gitea:
+    owner: keb
+    name: lazysecrets
+  # v0.2.0-rc.1 is a pre-release.
+  prerelease: auto
+  # Running again for a tag (after deleting and pushing it again) replaces
+  # the release's notes and files.
+  mode: replace
+  replace_existing_artifacts: true
+  footer: |
+    ## Install
+
+    On macOS or Linux, into `~/.local/bin`:
+
+    ```sh
+    curl -fsSL https://git.kebcloud.no/keb/lazysecrets/raw/branch/main/install.sh | sh -s -- {{ .Tag }}
+    ```
+
+    Or download the archive for your platform below, check it against `checksums.txt`, and put `lazysecrets` on your PATH.
+
+    macOS quarantines files downloaded in a browser; if it refuses to run lazysecrets, clear that with `xattr -d com.apple.quarantine ~/.local/bin/lazysecrets`.

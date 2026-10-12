@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Docs
+    url: https://git.kebcloud.no/keb/lazysecrets/src/branch/main/docs
+    about: Keys, sources, links, config and more.

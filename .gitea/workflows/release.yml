@@ -1,0 +1,95 @@
+name: Release
+
+# A tag vMAJOR.MINOR.PATCH (or with a suffix, like v0.2.0-rc.1, published
+# as a pre-release) tests lazysecrets, then GoReleaser (.goreleaser.yaml)
+# builds it for macOS and Linux, arm64 and amd64, and publishes a Gitea
+# release with the archives, checksums and this release's section of the
+# changelog (git-cliff, cliff.toml), then copies it to the GitHub
+# mirror. Pushing the same tag again (after deleting it) replaces the
+# release in both places.
+#
+#   scripts/release.sh v0.2.0    # updates CHANGELOG.md, tags and pushes
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout (full history, for the changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          # The runner mounts Go, the module cache and the build cache as
+          # volumes (nix-config, gitea-runner.nix): nothing to restore.
+          cache: false
+
+      - name: Test
+        run: |
+          go vet ./...
+          go test ./...
+
+      - name: Install git-cliff
+        # Pinned, with checksums.
+        run: |
+          set -eo pipefail
+          V=2.14.2
+          case "$(uname -m)" in
+            x86_64) A=x86_64; SUM=26d1f7c8ea2400f2ccb0b2e7f321635f600b583bf4cd1f7afaa5e8c24068ad1088a2504e0a4d9f4333d4bb20a80329327d9462634343ee3af91e1a7fbdc6f18a ;;
+            aarch64) A=aarch64; SUM=fd27768ea76fea8c3ba3f3247fef2f6604988b629f15e48bf40be5eaa08b8fef2e4087cc9c8af16bc522bc19cc369611fa7692101b513f63469ad58522708600 ;;
+            *) echo "::error::no git-cliff for $(uname -m)"; exit 1 ;;
+          esac
+          F="git-cliff-$V-$A-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$F" "https://github.com/orhun/git-cliff/releases/download/v$V/$F"
+          echo "$SUM  $RUNNER_TEMP/$F" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/$F" -C "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/git-cliff-$V/git-cliff" /usr/local/bin/
+
+      - name: Release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eo pipefail
+          # This release's section of the changelog: the feat/fix/perf pull
+          # requests since the previous release, without its heading (the
+          # release has a title). A pre-release's tag isn't a release to
+          # git-cliff (tag_pattern), so it's what's unreleased. Written
+          # outside the checkout, which GoReleaser wants clean.
+          if [[ "$TAG" == *-* ]]; then
+            notes=$(git cliff --unreleased --tag "$TAG" --strip all)
+          else
+            notes=$(git cliff --latest --strip all)
+          fi
+          printf '%s\n' "$notes" | sed '1{/^## /d;}' | sed '/./,$!d' > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.18.3
+          args: release --clean --release-notes ${{ runner.temp }}/notes.md
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy the release to GitHub
+        # The same notes and files on the GitHub mirror, which lazysecrets
+        # updates from first (internal/update). GH_RELEASE_TOKEN is a
+        # fine-grained token that can write the mirror's contents; without
+        # it the step does nothing.
+        run: node scripts/github-release.mjs
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}

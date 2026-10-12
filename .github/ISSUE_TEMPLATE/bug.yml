@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in lazysecrets doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please leave out secret values, tokens and anything else private: names of vaults and secrets are enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If you can, try `lazysecrets --demo` first.
+      placeholder: |
+        1. lazysecrets --demo
+        2. ctrl+s, type …
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The status pane shows it, e.g. `v0.1.0`.
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Azure Key Vault
+        - Databricks
+        - SOPS or .env files
+        - Links
+        - Everywhere / not sure
+  - type: input
+    id: platform
+    attributes:
+      label: OS and terminal
+      placeholder: macOS 26, kitty + tmux

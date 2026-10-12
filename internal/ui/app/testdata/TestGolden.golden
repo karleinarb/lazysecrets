@@ -1,0 +1,33 @@
+╭─ [0] lazysecrets ─────────────╮╭─ platform-prod ─────────────────────────────────────────────────╮
+│ 2 accounts                    ││ name       platform-prod                                        │
+╰───────────────────────────────╯│ ID         sub-prod                                             │
+╭─ [1] Sources - Favourites ────╮│ web        https://portal.azure.com/#resource/subscriptions/sub…│
+│ ▾ Azure (2)                   ││ vaults     3                                                    │
+│   platform-prod               ││                                                                 │
+│   platform-dev                ││                                                                 │
+│ ▾ Databricks (2)              ││                                                                 │
+│   prod                        ││                                                                 │
+╰────────────────────── 2 of 6 ─╯│                                                                 │
+╭─ [2] Vaults ──────────────────╮│                                                                 │
+│ kv-app-prod                   ││                                                                 │
+│ kv-shared-prod                ││                                                                 │
+│ kv-restricted                 ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+╰────────────────────── 1 of 3 ─╯│                                                                 │
+╭─ [3] Secrets - Keys - Certs ──╮│                                                                 │
+│ db-password                   ││                                                                 │
+│ api-key                       ││                                                                 │
+│ legacy-token (disabled)       ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+│                               ││                                                                 │
+╰────────────────────── 1 of 3 ─╯╰──────────────────────────────────────────────────────── 1 of 4 ─╯
+ enter open • ctrl+s search • s copy link • S share • f star • F favourites • … • ? help • q quit

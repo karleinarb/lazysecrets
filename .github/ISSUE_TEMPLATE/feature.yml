@@ -1,0 +1,20 @@
+name: Feature request
+description: An idea for lazysecrets, or something that could work better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        lazysecrets stays focused on finding, reading and sharing secrets, so not every idea will make it in, but they're all read.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The problem or the situation, more than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How you'd like it to work, if you have one in mind.
