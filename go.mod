@@ -20,7 +20,7 @@ require (
 	github.com/databricks/databricks-sdk-go v0.187.0
 	github.com/junegunn/fzf v0.74.4
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/mod v0.41.0
+	golang.org/x/mod v0.42.0
 	golang.org/x/term v0.47.0
 	gopkg.in/ini.v1 v1.67.3
 )
