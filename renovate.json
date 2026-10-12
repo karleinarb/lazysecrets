@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>keb/renovate"
+  ],
+  "packageRules": [
+    {
+      "description": "A test helper pinned to a commit, with no releases to update to: Renovate can't look it up and warns on every run.",
+      "matchPackageNames": ["github.com/charmbracelet/x/exp/golden"],
+      "enabled": false
+    }
   ]
 }
