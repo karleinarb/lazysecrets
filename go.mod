@@ -20,8 +20,8 @@ require (
 	github.com/databricks/databricks-sdk-go v0.187.0
 	github.com/junegunn/fzf v0.74.4
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/mod v0.38.0
-	golang.org/x/term v0.45.0
+	golang.org/x/mod v0.41.0
+	golang.org/x/term v0.47.0
 	gopkg.in/ini.v1 v1.67.3
 )
 
@@ -71,7 +71,7 @@ require (
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/api v0.182.0 // indirect
