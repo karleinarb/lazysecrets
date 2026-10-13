@@ -51,6 +51,8 @@ commit_preprocessors = [
   { pattern = "^Merge pull request '(.+)' \\((#[0-9]+)\\) from .*", replace = "${1} (${2})" },
   # #11 was squash-merged with #10 (the status pane) in it: name both.
   { pattern = "^feat: link each changelog entry to its PR and commit \\(#11\\)", replace = "feat: a status pane (0) with version, updates, accounts, files and links; changelog entries link to their PR and commit (#11)" },
+  # #55's title starts with a key, which capitalised reads as another.
+  { pattern = "^feat: e on the status pane edits the config", replace = "feat: `e` on the status pane edits the config" },
   # Titles may be written "[feat] x", "[feat]: x" or "feat:x" (see
   # pr-title.yml); all become "feat: x".
   { pattern = "^\\[(feat|fix|perf|refactor|docs|test|ci|chore|build|style|revert)(\\([^)]*\\))?(!?)\\](!?):?\\s*", replace = "${1}${2}${3}${4}: " },
