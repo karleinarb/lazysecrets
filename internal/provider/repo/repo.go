@@ -80,6 +80,10 @@ type repoInfo struct {
 	here   bool   // the repo lazysecrets started in
 }
 
+// DefaultRoots are the usual folders of repos, used when the config
+// doesn't set roots. Ones that don't exist cost a stat each.
+var DefaultRoots = []string{"~/git", "~/repo", "~/repos", "~/projects", "~/code", "~/source", "~/src"}
+
 func New(s Settings) *Provider {
 	if s.Sops == "" {
 		s.Sops = "sops"
@@ -116,10 +120,18 @@ func (p *Provider) load() {
 			}
 			add(root)
 		}
+		// Missing roots are skipped (most of the defaults are), and one
+		// that's a symlink to another is scanned once.
+		scanned := map[string]bool{}
 		for _, dir := range p.s.Roots {
-			base, _ := filepath.EvalSymlinks(expandHome(dir))
-			for _, root := range reposIn(expandHome(dir), 2) {
-				if name, err := filepath.Rel(base, root); err == nil && !strings.HasPrefix(name, "..") {
+			base, err := filepath.EvalSymlinks(expandHome(dir))
+			if err != nil || scanned[base] {
+				continue
+			}
+			scanned[base] = true
+			for _, root := range reposIn(base, 2) {
+				// A repo under two roots keeps the first one's name.
+				if name, err := filepath.Rel(base, root); err == nil && !strings.HasPrefix(name, "..") && names[root] == "" {
 					names[root] = filepath.ToSlash(name)
 				}
 				add(root)

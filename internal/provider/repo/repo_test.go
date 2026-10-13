@@ -336,6 +336,30 @@ func TestRoots(t *testing.T) {
 	}
 }
 
+func TestRootsDeduped(t *testing.T) {
+	root, _ := filepath.EvalSymlinks(t.TempDir())
+	os.Rename(gitRepo(t, map[string]string{"secrets/a.yaml": sopsYAML}), filepath.Join(root, "infra"))
+	os.MkdirAll(filepath.Join(root, "acme"), 0o755)
+	os.Rename(gitRepo(t, map[string]string{"prod.env": sopsEnv}), filepath.Join(root, "acme", "billing"))
+
+	// ~/src → ~/git, and a root reaching one repo at another depth.
+	links := t.TempDir()
+	alias := filepath.Join(links, "src")
+	os.Symlink(root, alias)
+	missing := filepath.Join(links, "nope")
+	acme := filepath.Join(root, "acme")
+
+	srcs, err := New(Settings{Dir: links, Roots: []string{missing, root, alias, acme}}).Sources(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := names(srcs, func(s provider.Source) string { return s.Name })
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"acme/billing", "infra"}) {
+		t.Errorf("repos: %v, want each once, named from the first root", got)
+	}
+}
+
 func TestStarredReposAlongside(t *testing.T) {
 	here := gitRepo(t, map[string]string{"secrets/a.yaml": sopsYAML})
 	starred := gitRepo(t, map[string]string{"prod.env": sopsEnv})

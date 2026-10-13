@@ -287,7 +287,7 @@ Flags:
 			if start == "" {
 				start, _ = os.Getwd()
 			}
-			roots := []string{"~/git"}
+			roots := repo.DefaultRoots
 			if pc.Repos.Roots != nil {
 				roots = *pc.Repos.Roots
 			}

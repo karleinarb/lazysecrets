@@ -7,10 +7,11 @@ lazysecrets shows git repositories under **Repos**: their
 
 ## Which repos
 
-**Repos** lists every repo with secret files under the `roots` (`~/git`
-by default; one or two levels down, `repo` or `org/repo`), any listed in
-`paths`, and any you starred something in (the repo, a file or a key),
-wherever it is. They're checked in the background.
+**Repos** lists every repo with secret files under the `roots` (by
+default whichever of `~/git`, `~/repo`, `~/repos`, `~/projects`, `~/code`,
+`~/source` and `~/src` exist; one or two levels down, `repo` or
+`org/repo`), any listed in `paths`, and any you starred something in
+(the repo, a file or a key), wherever it is. They're checked in the background.
 
 Started inside a repo, that repo gets a row of its own at the top,
 `Repo · <name>`, and lazysecrets opens on it, with the files under the
@@ -49,7 +50,7 @@ Folders of dependencies and caches are never looked in, tracked or not:
 ```yaml
 providers:
   repos:
-    roots: [~/git]                             # folders of repos (the default; [] turns it off)
+    roots: [~/git]                             # folders of repos (replaces the defaults; [] turns it off)
     paths: [~/work/infra]                      # single repos elsewhere
     include: ["secrets/**", "**/*.sops.yaml"]  # globs from the repo root; ** for any depth
     exclude: ["**/testdata/**"]

@@ -115,8 +115,8 @@ type Repos struct {
 	// Enabled defaults to true.
 	Enabled *bool    `yaml:"enabled"`
 	Paths   []string `yaml:"paths"`
-	// Roots are folders of repos. Defaults to ~/git; an empty list
-	// turns it off.
+	// Roots are folders of repos. Defaults to repo.DefaultRoots (~/git,
+	// ~/src, ~/code and the like); an empty list turns it off.
 	Roots *[]string `yaml:"roots"`
 	// Include and Exclude are globs relative to a repo's root (** for any
 	// depth), for repos without their own .lazysecrets.yaml. Without them,
