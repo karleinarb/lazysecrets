@@ -75,9 +75,10 @@ func TestLoadRejectsMistakes(t *testing.T) {
 		"old layout": "azure:\n  vaults: [https://kv.vault.azure.net/]\n",
 		"flat keys":  "icons: false\n",
 		"duration":   "providers:\n  timeout: soon\n",
+		"negative":   "providers:\n  repos:\n    timeout: -1s\n",
 		"view":       "ui:\n  sourcesView: tree\n",
-		"sources":    "updates:\n  updateSources: [git.example.com/team/lazysecrets]\n",
-		"http":       "updates:\n  updateSources: [http://git.example.com/team/lazysecrets]\n",
+		"sources":    "updates:\n  sources: [git.example.com/team/lazysecrets]\n",
+		"http":       "updates:\n  sources: [http://git.example.com/team/lazysecrets]\n",
 		"interval":   "updates:\n  autoCheckInterval: 0s\n",
 		"share key":  "sharing:\n  key: https://kv.vault.azure.net/\n",
 		"workspace":  "sharing:\n  key: \"{{secrets/team/env-share}}\"\n",
@@ -131,8 +132,8 @@ theme:
 }
 
 func TestUpdates(t *testing.T) {
-	c, err := Load(write(t, "updates:\n  autoCheck: false\n  autoCheckInterval: 168h\n  updateSources: [https://git.example.com/team/lazysecrets]\n"))
-	if err != nil || On(c.Updates.AutoCheck) || *c.Updates.AutoCheckInterval != 7*24*time.Hour || len(c.Updates.UpdateSources) != 1 {
+	c, err := Load(write(t, "updates:\n  autoCheck: false\n  autoCheckInterval: 168h\n  sources: [https://git.example.com/team/lazysecrets]\n"))
+	if err != nil || On(c.Updates.AutoCheck) || *c.Updates.AutoCheckInterval != 7*24*time.Hour || len(c.Updates.Sources) != 1 {
 		t.Errorf("updates = %+v, %v", c.Updates, err)
 	}
 }

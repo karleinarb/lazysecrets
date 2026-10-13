@@ -5,6 +5,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -194,6 +195,11 @@ Flags:
 	if err != nil {
 		return err
 	}
+	// Warnings show when the window opens.
+	var warnings []string
+	if w := styles.Unknown(cfg.Theme); w != "" {
+		warnings = append(warnings, w)
+	}
 	keymap := keys.Default()
 	if err := keymap.Apply(cfg.Keybinding); err != nil {
 		return err
@@ -208,6 +214,9 @@ Flags:
 	// Precedence: flag > environment > config file > default.
 	set := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	if *timeout <= 0 {
+		return fmt.Errorf("--timeout: %s is not positive", *timeout)
+	}
 	// Each provider's own timeout, unless --timeout sets them all.
 	timeouts := map[provider.Kind]time.Duration{}
 	if !set["timeout"] {
@@ -265,7 +274,9 @@ Flags:
 		statePath = filepath.Join(stateDir, "state.json")
 	}
 	st, err := store.Load(statePath)
-	if err != nil {
+	if errors.Is(err, store.ErrNewer) {
+		warnings = append(warnings, err.Error()+": stars, notes and the layout won't be saved; update lazysecrets")
+	} else if err != nil {
 		return err
 	}
 
@@ -406,13 +417,14 @@ Flags:
 		ExpiryWarning:  time.Duration(expiryDays) * 24 * time.Hour,
 		HideOnBlur:     config.On(cfg.Values.HideOnBlur),
 		HandlerSetup:   setup,
-		Updater:        updater(cfg.Updates.UpdateSources),
+		Updater:        updater(cfg.Updates.Sources),
 		UpdateCheck:    config.On(cfg.Updates.AutoCheck),
 		UpdateEvery:    updateEvery,
 		Keys:           &keymap,
 		Commands:       cfg.CustomCommands,
 		Version:        versionString(),
 		Store:          st,
+		Warning:        strings.Join(warnings, " · "),
 		CacheFile:      cacheFile,
 		ConfigFiles:    configFiles(*configPath),
 		StatePath:      statePath,

@@ -79,6 +79,9 @@ type Options struct {
 	// and keeps its state, for the status pane.
 	ConfigFiles []string
 	StatePath   string
+	// Warning shows when the window opens: what lazysecrets skipped
+	// instead of failing to start.
+	Warning string
 	// Changelog is CHANGELOG.md, for the status pane.
 	Changelog string
 	// CacheFile keeps what was loaded between runs; "" keeps it for this
@@ -474,6 +477,9 @@ func New(providers []provider.Provider, opts Options) Model {
 	m.cachePath, m.placeDir, m.sourcesAt = opts.CacheFile, opts.Dir, map[string]time.Time{}
 	m.shareKey, m.shareRules = opts.ShareKey, opts.ShareRules
 	m.configFiles, m.statePath, m.changelog = opts.ConfigFiles, opts.StatePath, changelogFields(opts.Changelog)
+	if opts.Warning != "" {
+		m.flash = warning(opts.Warning)
+	}
 	if m.cachePath != "" {
 		m.loadCacheFile()
 		if len(m.sourceResults) > 0 {

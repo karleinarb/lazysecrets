@@ -82,10 +82,10 @@ type Updates struct {
 	AutoCheck *bool `yaml:"autoCheck"`
 	// AutoCheckInterval defaults to 24h.
 	AutoCheckInterval *time.Duration `yaml:"autoCheckInterval"`
-	// UpdateSources are the repositories updates come from, tried in
+	// Sources are the repositories updates come from, tried in
 	// order: on GitHub, or a Gitea or Forgejo server. Defaults to GitHub,
 	// then git.kebcloud.no (update.DefaultServers).
-	UpdateSources []string `yaml:"updateSources"`
+	Sources []string `yaml:"sources"`
 }
 
 type LinkHandler struct {
@@ -268,9 +268,9 @@ func (c Config) validate(path string) error {
 	if d := c.Updates.AutoCheckInterval; d != nil && *d <= 0 {
 		return fmt.Errorf("%s: updates.autoCheckInterval: %s is not positive (autoCheck: false turns it off)", path, *d)
 	}
-	for i, r := range c.Updates.UpdateSources {
+	for i, r := range c.Updates.Sources {
 		if _, err := update.API(r); err != nil || !strings.HasPrefix(r, "https://") {
-			return fmt.Errorf("%s: updates.updateSources[%d]: %q is not an https:// repository address, like %s", path, i, r, update.GitHubRepo)
+			return fmt.Errorf("%s: updates.sources[%d]: %q is not an https:// repository address, like %s", path, i, r, update.GitHubRepo)
 		}
 	}
 	if k := c.Sharing.Key; k != "" {
@@ -283,6 +283,16 @@ func (c Config) validate(path string) error {
 	}
 	if n := c.Sharing.KeyRules.MinClasses; n < 0 || n > 4 {
 		return fmt.Errorf("%s: sharing.keyRules.minClasses: %d is not between 1 and 4", path, n)
+	}
+	for name, d := range map[string]time.Duration{
+		"providers.timeout":            c.Providers.Timeout,
+		"providers.azure.timeout":      c.Providers.Azure.Timeout,
+		"providers.databricks.timeout": c.Providers.Databricks.Timeout,
+		"providers.repos.timeout":      c.Providers.Repos.Timeout,
+	} {
+		if d < 0 {
+			return fmt.Errorf("%s: %s: %s is negative", path, name, d)
+		}
 	}
 	for i, v := range c.Providers.Azure.Vaults {
 		if !strings.HasPrefix(v, "https://") {

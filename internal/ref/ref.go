@@ -310,7 +310,7 @@ func parseLink(s string) (Ref, error) {
 		}
 
 	default:
-		return Ref{}, fmt.Errorf("unknown provider %q in link", u.Host)
+		return Ref{}, fmt.Errorf("unknown provider %q in link: a newer lazysecrets may know it (lazysecrets update)", u.Host)
 	}
 	return r, nil
 }

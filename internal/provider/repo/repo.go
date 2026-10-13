@@ -403,10 +403,11 @@ func (p *Provider) Versions(context.Context, provider.Object) ([]provider.Object
 func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.SecretValue, error) {
 	file, extract, ok := strings.Cut(o.ID, "\x00")
 	if !ok { // made from a link: the repo's root, the file's path, the key
-		file, extract = o.Container.ID, extractFor(o.Name)
+		file = o.Container.ID
 		if file == "" {
 			file = filepath.Join(o.Container.Source.ID, filepath.FromSlash(o.Container.Name))
 		}
+		extract = extractFor(file, o.Name)
 	}
 	if _, isSops := readMeta(file); !isSops {
 		return plainValue(file, o.Name)
@@ -1012,7 +1013,7 @@ func formatOf(file string) string {
 }
 
 type key struct {
-	name      string // db.password, list[0]
+	name      string // db.password, list[0], with . [ ] \ in keys escaped
 	extract   string // sops --extract: ["db"]["password"]
 	encrypted bool
 	line      int // 1-based
@@ -1057,7 +1058,7 @@ func parseKeys(file string, b []byte) ([]key, error) {
 					continue
 				}
 				k, v = strings.TrimSpace(k), strings.TrimSpace(v)
-				out = append(out, key{name: section + "." + k, extract: quote(section) + quote(k), encrypted: strings.HasPrefix(v, "ENC["), line: i + 1})
+				out = append(out, key{name: escape(section) + "." + escape(k), extract: quote(section) + quote(k), encrypted: strings.HasPrefix(v, "ENC["), line: i + 1})
 			}
 		}
 		return out, nil
@@ -1074,9 +1075,9 @@ func walk(n *yaml.Node, name, extract string, top bool, out *[]key) {
 			if top && k == "sops" {
 				continue
 			}
-			child := k
+			child := escape(k)
 			if name != "" {
-				child = name + "." + k
+				child = name + "." + child
 			}
 			walk(n.Content[i+1], child, extract+quote(k), false, out)
 		}
@@ -1098,21 +1099,54 @@ func quote(k string) string {
 	return `["` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(k) + `"]`
 }
 
+// escape keeps a key's dots and brackets from reading as nesting in a
+// name: app\.name is one key, app.name two.
+func escape(k string) string {
+	return strings.NewReplacer(`\`, `\\`, `.`, `\.`, `[`, `\[`, `]`, `\]`).Replace(k)
+}
+
 // extractFor rebuilds the extract path from a key name, for objects made
-// from a link (db.password, list[0]). Names with dots in keys can't be
-// told apart from nesting: those come from the listing instead.
-func extractFor(name string) string {
-	var b strings.Builder
-	for _, part := range strings.Split(name, ".") {
-		base, idx, _ := strings.Cut(part, "[")
-		if base != "" {
-			b.WriteString(quote(base))
-		}
-		if idx != "" {
-			b.WriteString("[" + idx)
+// from a link (db.password, list[0], app\.name). A dotenv file is flat:
+// its names are the keys as they are.
+func extractFor(file, name string) string {
+	if formatOf(file) == "dotenv" {
+		return quote(name)
+	}
+	var b, part strings.Builder
+	flush := func() {
+		if part.Len() > 0 {
+			b.WriteString(quote(part.String()))
+			part.Reset()
 		}
 	}
+	for i := 0; i < len(name); i++ {
+		switch c := name[i]; c {
+		case '\\':
+			if i+1 < len(name) {
+				i++
+			}
+			part.WriteByte(name[i])
+		case '.':
+			flush()
+		case '[':
+			end := strings.IndexByte(name[i:], ']')
+			if end < 0 || !digits(name[i+1:i+end]) {
+				part.WriteByte(c)
+				continue
+			}
+			flush()
+			b.WriteString(name[i : i+end+1])
+			i += end
+		default:
+			part.WriteByte(c)
+		}
+	}
+	flush()
 	return b.String()
+}
+
+func digits(s string) bool {
+	return s != "" && strings.Trim(s, "0123456789") == ""
 }
 
 func absPath(p string) string {

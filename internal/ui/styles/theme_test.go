@@ -44,16 +44,26 @@ func TestFromTheme(t *testing.T) {
 
 func TestFromThemeRejectsMistakes(t *testing.T) {
 	for name, theme := range map[string]map[string][]string{
-		"role":    {"activeBorder": {"red"}},
 		"colour":  {"errorColor": {"redish"}},
 		"hex":     {"errorColor": {"#fff"}},
 		"palette": {"errorColor": {"300"}},
 	} {
 		if _, _, err := FromTheme(theme); err == nil {
 			t.Errorf("%s: no error", name)
-		} else if name == "role" && !strings.Contains(err.Error(), "activeBorderColor") {
-			t.Errorf("unknown role error should list the known ones: %v", err)
 		}
+	}
+}
+
+func TestUnknownRolesSkipped(t *testing.T) {
+	theme := map[string][]string{"activeBorder": {"red"}, "errorColor": {"red"}}
+	if _, _, err := FromTheme(theme); err != nil {
+		t.Errorf("unknown role failed the theme: %v", err)
+	}
+	if w := Unknown(theme); !strings.Contains(w, "unknown activeBorder ") || strings.Contains(w, "errorColor") {
+		t.Errorf("warning = %q", w)
+	}
+	if w := Unknown(map[string][]string{"errorColor": {"red"}}); w != "" {
+		t.Errorf("warning for known roles: %q", w)
 	}
 }
 

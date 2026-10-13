@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,11 +66,17 @@ func TestTwoWindowsDontLoseEachOthersChanges(t *testing.T) {
 	}
 }
 
-func TestNewerVersionRefused(t *testing.T) {
+func TestNewerVersionReadOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
-	_ = os.WriteFile(path, []byte(`{"version": 99, "nodes": {}}`), 0o600)
-	if _, err := Load(path); err == nil {
-		t.Error("a newer file was accepted")
+	newer := `{"version": 99, "nodes": {"one": {"note": "hi"}}}`
+	_ = os.WriteFile(path, []byte(newer), 0o600)
+	s, err := Load(path)
+	if !errors.Is(err, ErrNewer) || s == nil || s.Node("one").Note != "hi" {
+		t.Fatalf("Load = %v, %v", s, err)
+	}
+	_ = s.SetFlag("x", true)
+	if b, _ := os.ReadFile(path); string(b) != newer {
+		t.Errorf("the newer file was overwritten: %s", b)
 	}
 }
 

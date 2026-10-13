@@ -23,7 +23,7 @@ storage:
 updates:
   autoCheck: true          # look for a newer release at startup (U and lazysecrets update work either way)
   autoCheckInterval: 24h   # at most this often
-  updateSources:           # where updates come from, tried in order (GitHub, or a Gitea or Forgejo server)
+  sources:                 # where updates come from, tried in order (GitHub, or a Gitea or Forgejo server)
     - https://github.com/karleinarb/lazysecrets
     - https://git.kebcloud.no/keb/lazysecrets
 providers:
@@ -91,6 +91,9 @@ theme:
   repoColor: ["#c099ff"]
 ```
 
+A role lazysecrets doesn't know, a typo or one from a newer version, is
+skipped with a warning.
+
 Icons need a [Nerd Font](https://www.nerdfonts.com) (v3+). If they render
 as boxes, turn them off with `ui.icons: false`.
 
@@ -116,6 +119,8 @@ starred the item under (a vault two of your accounts can see can be starred
 for one); a note describes the item, so it shows under every account. It's
 JSON so an editor plugin can read it with a built-in parser; several
 lazysecrets windows can save to it without losing each other's changes.
+One written by a newer lazysecrets is read but not saved to, with a
+warning, until you update.
 
 Revealing, copying, opening in the browser, sharing and jumping to an item
 count as using it: its record keeps when it was last used and how often,
@@ -149,7 +154,7 @@ At startup, in the background, lazysecrets asks for the latest release
 until then it reuses the answer from the state file. Releases are
 published on GitHub and on git.kebcloud.no, and it asks them in that
 order, the next when one doesn't answer within 5 seconds;
-`updates.updateSources` lists others, such as a mirror of your own. Offline, or with
+`updates.sources` lists others, such as a mirror of your own. Offline, or with
 every server down, it says nothing. A newer release shows in the footer, `v0.1.1 ↑ v0.2.0`; `U` (or
 `lazysecrets update --check`) shows what changed since your version, across the last 10 releases.
 

@@ -3,7 +3,8 @@
 lazysecrets shows git repositories under **Repos**: their
 [SOPS](https://github.com/getsops/sops)-encrypted files (YAML, JSON,
 `.env`, INI) and plain env files as vaults, and the keys in them
-(`db.password`, `list[0]`) as secrets.
+(`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
+escaped, `app\.name`, so it doesn't read as nesting.
 
 ## Which repos
 

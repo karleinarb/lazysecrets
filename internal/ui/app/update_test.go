@@ -122,3 +122,11 @@ func TestUpdateAsked(t *testing.T) {
 		t.Errorf("U on a dev build:\n%s", dev.screen())
 	}
 }
+
+func TestStartupWarning(t *testing.T) {
+	t.Parallel()
+	d := newDriverOpts(t, Options{Warning: "theme: skipped unknown activeBorder"})
+	if !strings.Contains(d.screen(), "theme: skipped unknown activeBorder") {
+		t.Errorf("no warning:\n%s", d.screen())
+	}
+}

@@ -45,7 +45,9 @@ var Roles = map[string]string{
 }
 
 // FromTheme returns the default styles with the theme's roles applied, and
-// the default text colour if the theme sets one.
+// the default text colour if the theme sets one. Roles it doesn't know are
+// skipped (see Unknown): a theme file made for a newer lazysecrets still
+// works.
 func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 	st := Default()
 	var fg color.Color
@@ -56,7 +58,7 @@ func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 	sort.Strings(roles)
 	for _, role := range roles {
 		if _, ok := Roles[role]; !ok {
-			return st, nil, fmt.Errorf("theme: unknown role %q (known: %s)", role, strings.Join(sortedRoles(), ", "))
+			continue
 		}
 		v, err := parse(theme[role])
 		if err != nil {
@@ -107,13 +109,20 @@ func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 	return st, fg, nil
 }
 
-func sortedRoles() []string {
-	var out []string
-	for r := range Roles {
-		out = append(out, r)
+// Unknown says which of the theme's roles aren't known, for a warning, or
+// is empty.
+func Unknown(theme map[string][]string) string {
+	var unknown []string
+	for r := range theme {
+		if _, ok := Roles[r]; !ok {
+			unknown = append(unknown, r)
+		}
 	}
-	slices.Sort(out)
-	return out
+	if len(unknown) == 0 {
+		return ""
+	}
+	slices.Sort(unknown)
+	return "theme: skipped unknown " + strings.Join(unknown, ", ") + " (a typo, or from a newer lazysecrets)"
 }
 
 // value is a parsed role: a colour (nil for default) and attributes.

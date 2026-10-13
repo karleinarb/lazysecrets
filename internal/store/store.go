@@ -145,16 +145,23 @@ type Store struct {
 	data file
 }
 
+// ErrNewer is a state file written by a newer lazysecrets.
+var ErrNewer = errors.New("written by a newer lazysecrets")
+
 // Load reads path; a missing file is an empty store. path "" gives a store
-// that never saves, for tests and --demo.
+// that never saves, for tests and --demo. A file from a newer lazysecrets
+// is read but never saved, so nothing it keeps is lost: Load returns the
+// store with an ErrNewer error.
 func Load(path string) (*Store, error) {
 	s := &Store{path: path}
 	d, err := read(path)
-	if err != nil {
+	if errors.Is(err, ErrNewer) {
+		s.path = ""
+	} else if err != nil {
 		return nil, err
 	}
 	s.data = d
-	return s, nil
+	return s, err
 }
 
 func read(path string) (file, error) {
@@ -172,11 +179,11 @@ func read(path string) (file, error) {
 	if err := json.Unmarshal(b, &d); err != nil {
 		return d, fmt.Errorf("%s: %w", path, err)
 	}
-	if d.Version > version {
-		return d, fmt.Errorf("%s: written by a newer lazysecrets (version %d)", path, d.Version)
-	}
 	if d.Nodes == nil {
 		d.Nodes = map[string]Node{}
+	}
+	if d.Version > version {
+		return d, fmt.Errorf("%s: %w (version %d)", path, ErrNewer, d.Version)
 	}
 	return d, nil
 }

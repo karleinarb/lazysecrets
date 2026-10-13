@@ -545,3 +545,24 @@ func TestFileDetails(t *testing.T) {
 		t.Errorf("untracked env: %+v", d)
 	}
 }
+
+func TestKeyNamesEscaped(t *testing.T) {
+	keys, err := parseKeys("s.yaml", []byte("app.name: x\ndb:\n  password: y\nlist: [a, b]\nodd[1]: z\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, k := range keys {
+		got = append(got, k.name+" "+k.extract)
+		if e := extractFor("s.yaml", k.name); e != k.extract {
+			t.Errorf("extractFor(%q) = %s, want %s", k.name, e, k.extract)
+		}
+	}
+	want := `app\.name ["app.name"]|db.password ["db"]["password"]|list[0] ["list"][0]|list[1] ["list"][1]|odd\[1\] ["odd[1]"]`
+	if strings.Join(got, "|") != want {
+		t.Errorf("keys = %s\nwant   %s", strings.Join(got, "|"), want)
+	}
+	if e := extractFor(".env", "spring.url"); e != `["spring.url"]` {
+		t.Errorf("dotenv: %s", e)
+	}
+}
