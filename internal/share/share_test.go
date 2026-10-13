@@ -243,7 +243,7 @@ func TestDefaultKey(t *testing.T) {
 	if err != nil || !ok || k.Name != "env-share" {
 		t.Errorf("general: %+v %v %v", k, ok, err)
 	}
-	os.WriteFile(filepath.Join(dir, ".lazysecrets.yaml"), []byte("share:\n  key: lazysecrets://azure/kv-app.vault.azure.net/secrets/app-share\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".lazysecrets.yaml"), []byte("sharing:\n  key: lazysecrets://azure/kv-app.vault.azure.net/secrets/app-share\n"), 0o644)
 	if k, _, _ := DefaultKey(dir, general); k.Name != "app-share" {
 		t.Errorf("the repo's should win: %+v", k)
 	}

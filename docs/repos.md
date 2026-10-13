@@ -60,7 +60,7 @@ A repo's `.lazysecrets.yaml` can also name the secret its env files are
 [shared](links.md#sharing-env-files) with:
 
 ```yaml
-share:
+sharing:
   key: https://kv-team.vault.azure.net/secrets/env-share   # or its lazysecrets:// link
 ```
 

@@ -158,7 +158,7 @@ func (m *Model) copyFromRef(r ref.Ref) tea.Cmd {
 		m.flash = flash{text: "copy: no account or profile for " + describeRef(r), isErr: true}
 		return nil
 	}
-	ctx, req := m.begin(slotCopy)
+	ctx, req := m.begin(slotCopy, r.Kind)
 	m.flash = flash{text: "copying " + r.Name + "…"}
 	return func() tea.Msg {
 		var errs []error

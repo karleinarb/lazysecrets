@@ -54,7 +54,7 @@ uses it) or your config (for repos that don't name one), by its
 reference:
 
 ```yaml
-share:
+sharing:
   key: https://kv-team.vault.azure.net/secrets/env-share
 ```
 
@@ -67,7 +67,7 @@ isn't long and varied enough, saying how (never showing it). By default
 that's 32 characters of two kinds; your config can ask for more, or less:
 
 ```yaml
-share:
+sharing:
   keyRules:
     minLength: 32    # characters; 16 at least
     minClasses: 2    # kinds of character: lowercase, uppercase, digits, symbols

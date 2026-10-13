@@ -59,7 +59,7 @@ func (m *Model) shareFiles(src provider.Source, cs []provider.Container) tea.Cmd
 		m.flash = warning("these files can't be shared")
 		return nil
 	}
-	general, timeout := m.shareKey, m.timeout
+	general, timeout := m.shareKey, m.timeout.of(src.Kind)
 	m.flash = flash{text: "reading the files…"}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -216,7 +216,7 @@ func (m *Model) handleSealed(msg sealedMsg) tea.Cmd {
 func (m *Model) keyReader() func(ref.Ref) (provider.SecretValue, string, error) {
 	providers, st, timeout := m.providers, m.store, m.timeout
 	return func(key ref.Ref) (provider.SecretValue, string, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout.of(key.Kind))
 		defer cancel()
 		k := key
 		k.Version = ""
@@ -258,7 +258,7 @@ func (m *Model) offerShare(r ref.Ref) tea.Cmd {
 // openShare reads the key, decrypts the files and finds the repo's clone.
 func (m *Model) openShare(s share.Sealed) tea.Cmd {
 	read := m.keyReader()
-	providers, timeout := m.providers, m.timeout
+	providers, timeout := m.providers, m.timeout.of(provider.KindRepo)
 	m.flash = flash{text: "decrypting with " + s.Key.Name + "…"}
 	return func() tea.Msg {
 		msg := shareOpenedMsg{sealed: s}

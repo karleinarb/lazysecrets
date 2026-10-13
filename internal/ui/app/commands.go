@@ -165,7 +165,7 @@ func (m *Model) runCommand(c commands.Command, rendered string, obj *provider.Ob
 	o := *obj
 	p := m.providerFor(o.Container.Source)
 	m.flash = flash{text: "fetching " + o.Name + " for " + c.Description + "…"}
-	timeout := m.timeout
+	timeout := m.timeout.of(o.Container.Source.Kind)
 	m.usedObject(o)
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)

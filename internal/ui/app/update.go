@@ -20,7 +20,8 @@ type Updater struct {
 }
 
 // updateEvery is how often lazysecrets looks for a newer release on its
-// own; within that, the last answer (in the state file) is used.
+// own unless the config says otherwise; within that, the last answer (in
+// the state file) is used.
 const updateEvery = 24 * time.Hour
 
 type updateMsg struct {
@@ -35,14 +36,14 @@ type installedMsg struct {
 }
 
 // startUpdateCheck sets up the startup look for a newer release: the
-// state file's answer when it looked less than a day ago, else a quiet
+// state file's answer when it looked within updateEvery, else a quiet
 // look at the server (fetchOnStart, for Init).
 func (m *Model) startUpdateCheck() {
 	if m.updater == nil || !m.updateCheck {
 		return
 	}
 	last := m.store.UpdateCheck()
-	if m.now().Sub(last.At) < updateEvery {
+	if m.now().Sub(last.At) < m.updateEvery {
 		m.offer(update.Release{Tag: last.Tag, Body: last.Notes, URL: last.URL})
 		return
 	}

@@ -43,7 +43,7 @@ func updateCmd(configPath string, args []string) error {
 	current := versionString()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	c := &update.Client{Servers: cfg.Releases}
+	c := &update.Client{Servers: cfg.Updates.UpdateSources}
 	r, err := c.Latest(ctx)
 	if err != nil {
 		return fmt.Errorf("looking for a newer lazysecrets: %w", err)

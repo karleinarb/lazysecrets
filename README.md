@@ -99,10 +99,10 @@ use most:
 
 lazysecrets never stores, caches or sends your secret values. It keeps the
 names and metadata of what you've loaded in a cache file readable only by
-you, to show it at once next time (`cache: false` turns it off). It talks
+you, to show it at once next time (`storage.cache: false` turns it off). It talks
 only to the services you use it with, and collects no usage data. The one
 call of its own is a daily check for a new release, on GitHub or else
-git.kebcloud.no, which `updateCheck: false` turns off.
+git.kebcloud.no, which `updates.autoCheck: false` turns off.
 
 ## Repositories
 

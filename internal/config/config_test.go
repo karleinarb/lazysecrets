@@ -19,12 +19,17 @@ func write(t *testing.T, content string) string {
 
 func TestLoad(t *testing.T) {
 	c, err := Load(write(t, `
-icons: false
-sourcesView: flat
-clipboardClear: 45s
-timeout: 1m
+ui:
+  icons: false
+  sourcesView: flat
+values:
+  clipboardClear: 45s
+storage:
+  history: false
 providers:
+  timeout: 1m
   azure:
+    timeout: 2m
     hideSubscriptions: [platform-mgmt]
     vaults:
       - https://kv-foo.vault.azure.net/
@@ -35,12 +40,12 @@ providers:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Icons == nil || *c.Icons || c.ClipboardClear == nil || *c.ClipboardClear != 45*time.Second ||
-		c.Timeout != time.Minute || len(c.Providers.Azure.Vaults) != 1 || c.Providers.Databricks.HideProfiles[0] != "test" {
+	if c.UI.Icons == nil || *c.UI.Icons || c.Values.ClipboardClear == nil || *c.Values.ClipboardClear != 45*time.Second ||
+		c.Providers.Timeout != time.Minute || c.Providers.Azure.Timeout != 2*time.Minute || len(c.Providers.Azure.Vaults) != 1 || c.Providers.Databricks.HideProfiles[0] != "test" {
 		t.Errorf("config = %+v", c)
 	}
-	if c.SourcesView != "flat" {
-		t.Errorf("sourcesView = %q", c.SourcesView)
+	if c.UI.SourcesView != "flat" || On(c.Storage.History) || !On(c.Storage.Cache) {
+		t.Errorf("ui = %+v, storage = %+v", c.UI, c.Storage)
 	}
 	if !On(c.Providers.Azure.Enabled) || On(c.Providers.Databricks.Enabled) {
 		t.Error("enabled flags wrong")
@@ -57,7 +62,7 @@ func TestLoadMissingAndEmpty(t *testing.T) {
 		"empty":   write(t, ""),
 	} {
 		c, err := Load(path)
-		if err != nil || c.Icons != nil || c.ClipboardClear != nil {
+		if err != nil || c.UI.Icons != nil || c.Values.ClipboardClear != nil {
 			t.Errorf("%s: %+v, %v", name, c, err)
 		}
 	}
@@ -68,14 +73,16 @@ func TestLoadRejectsMistakes(t *testing.T) {
 		"typo":       "icon: true\n",
 		"bad vault":  "providers:\n  azure:\n    vaults: [kv-foo]\n",
 		"old layout": "azure:\n  vaults: [https://kv.vault.azure.net/]\n",
-		"duration":   "timeout: soon\n",
-		"view":       "sourcesView: tree\n",
-		"releases":   "releases: [git.example.com/team/lazysecrets]\n",
-		"http":       "releases: [http://git.example.com/team/lazysecrets]\n",
-		"share key":  "share:\n  key: https://kv.vault.azure.net/\n",
-		"workspace":  "share:\n  key: \"{{secrets/team/env-share}}\"\n",
-		"short keys": "share:\n  keyRules:\n    minLength: 8\n",
-		"classes":    "share:\n  keyRules:\n    minClasses: 5\n",
+		"flat keys":  "icons: false\n",
+		"duration":   "providers:\n  timeout: soon\n",
+		"view":       "ui:\n  sourcesView: tree\n",
+		"sources":    "updates:\n  updateSources: [git.example.com/team/lazysecrets]\n",
+		"http":       "updates:\n  updateSources: [http://git.example.com/team/lazysecrets]\n",
+		"interval":   "updates:\n  autoCheckInterval: 0s\n",
+		"share key":  "sharing:\n  key: https://kv.vault.azure.net/\n",
+		"workspace":  "sharing:\n  key: \"{{secrets/team/env-share}}\"\n",
+		"short keys": "sharing:\n  keyRules:\n    minLength: 8\n",
+		"classes":    "sharing:\n  keyRules:\n    minClasses: 5\n",
 	} {
 		if _, err := Load(write(t, content)); err == nil {
 			t.Errorf("%s: no error", name)
@@ -87,7 +94,8 @@ func TestLoadRejectsMistakes(t *testing.T) {
 
 func TestLoadAllLayers(t *testing.T) {
 	user := write(t, `
-icons: false
+ui:
+  icons: false
 theme:
   azureColor: [blue]
   errorColor: [red, bold]
@@ -96,6 +104,8 @@ providers:
     hideSubscriptions: [a]
 `)
 	theme := write(t, `
+ui:
+  sourcesView: flat
 theme:
   azureColor: ["#82aaff"]
   activeBorderColor: ["#ff966c", bold]
@@ -104,7 +114,8 @@ theme:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Icons == nil || *c.Icons || len(c.Providers.Azure.HideSubscriptions) != 1 {
+	// A group set in both files merges: icons from one, sourcesView the other.
+	if c.UI.Icons == nil || *c.UI.Icons || c.UI.SourcesView != "flat" || len(c.Providers.Azure.HideSubscriptions) != 1 {
 		t.Errorf("user settings lost: %+v", c)
 	}
 	want := map[string][]string{
@@ -119,19 +130,19 @@ theme:
 	}
 }
 
-func TestReleases(t *testing.T) {
-	c, err := Load(write(t, "releases: [https://git.example.com/team/lazysecrets]\n"))
-	if err != nil || len(c.Releases) != 1 {
-		t.Errorf("releases = %v, %v", c.Releases, err)
+func TestUpdates(t *testing.T) {
+	c, err := Load(write(t, "updates:\n  autoCheck: false\n  autoCheckInterval: 168h\n  updateSources: [https://git.example.com/team/lazysecrets]\n"))
+	if err != nil || On(c.Updates.AutoCheck) || *c.Updates.AutoCheckInterval != 7*24*time.Hour || len(c.Updates.UpdateSources) != 1 {
+		t.Errorf("updates = %+v, %v", c.Updates, err)
 	}
 }
 
 func TestLoadDelay(t *testing.T) {
-	c, err := Load(write(t, "loadDelay: 300ms\n"))
-	if err != nil || c.LoadDelay == nil || *c.LoadDelay != 300*time.Millisecond {
-		t.Errorf("loadDelay = %v, %v", c.LoadDelay, err)
+	c, err := Load(write(t, "ui:\n  loadDelay: 300ms\n"))
+	if err != nil || c.UI.LoadDelay == nil || *c.UI.LoadDelay != 300*time.Millisecond {
+		t.Errorf("loadDelay = %v, %v", c.UI.LoadDelay, err)
 	}
-	if _, err := Load(write(t, "loadDelay: 1m\n")); err == nil {
+	if _, err := Load(write(t, "ui:\n  loadDelay: 1m\n")); err == nil {
 		t.Error("a minute's delay accepted")
 	}
 }

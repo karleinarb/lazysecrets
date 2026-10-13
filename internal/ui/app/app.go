@@ -65,6 +65,8 @@ const (
 type Options struct {
 	// Timeout bounds every provider call. Defaults to 30s.
 	Timeout time.Duration
+	// Timeouts override Timeout for the providers of a kind.
+	Timeouts map[provider.Kind]time.Duration
 	// Icons shows Nerd Font glyphs next to backends.
 	Icons bool
 	// Clipboard defaults to the system clipboard, or OSC52 over SSH.
@@ -117,9 +119,11 @@ type Options struct {
 	// Keys, if set, replaces the default keymap (keys.Map.Apply).
 	Keys *keys.Map
 	// Updater, if set, finds and installs newer releases (U); with
-	// UpdateCheck, lazysecrets also looks once a day on its own.
+	// UpdateCheck, lazysecrets also looks on its own at startup, at most
+	// once per UpdateEvery (0 for a day).
 	Updater     *Updater
 	UpdateCheck bool
+	UpdateEvery time.Duration
 	// HandlerSetup, if set, offers to set up the link handler at startup.
 	HandlerSetup *HandlerSetup
 	// NoHistory stops counting uses of items for the Recent list.
@@ -144,7 +148,7 @@ type Clipboard interface {
 type Model struct {
 	providers []provider.Provider
 	byID      map[string]provider.Provider
-	timeout   time.Duration
+	timeout   timeouts
 
 	keys keys.Map
 	st   styles.Styles
@@ -236,6 +240,7 @@ type Model struct {
 
 	updater      *Updater
 	updateCheck  bool
+	updateEvery  time.Duration
 	fetchOnStart bool            // look for a newer release in Init
 	newer        *update.Release // a newer release to offer
 	updated      string          // the release installed, waiting for a restart
@@ -375,7 +380,7 @@ func New(providers []provider.Provider, opts Options) Model {
 	m := Model{
 		providers:     providers,
 		byID:          map[string]provider.Provider{},
-		timeout:       opts.Timeout,
+		timeout:       timeouts{def: opts.Timeout, byKind: opts.Timeouts},
 		keys:          keys.Default(),
 		st:            styles.Default(),
 		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
@@ -427,7 +432,10 @@ func New(providers []provider.Provider, opts Options) Model {
 	m.revealTimeout, m.hideOnBlur = opts.RevealTimeout, opts.HideOnBlur
 	m.expiryWarning = opts.ExpiryWarning
 	m.handlerSetup = opts.HandlerSetup
-	m.updater, m.updateCheck = opts.Updater, opts.UpdateCheck
+	m.updater, m.updateCheck, m.updateEvery = opts.Updater, opts.UpdateCheck, opts.UpdateEvery
+	if m.updateEvery == 0 {
+		m.updateEvery = updateEvery
+	}
 	m.startUpdateCheck()
 	m.askHandler = opts.HandlerSetup != nil && !m.store.Flag(flagNoHandlerPrompt)
 	m.settle = opts.LoadDelay
@@ -1240,7 +1248,7 @@ func (m *Model) showVersions(o provider.Object, key string) tea.Cmd {
 	}
 	m.secrets.SetLoading()
 	p := m.providerFor(o.Container.Source)
-	ctx, req := m.begin(slotObjects)
+	ctx, req := m.begin(slotObjects, o.Container.Source.Kind)
 	return func() tea.Msg {
 		items, err := p.Versions(ctx, o)
 		for i := range items {
@@ -1270,7 +1278,7 @@ func (m *Model) countVersions(o provider.Object) tea.Cmd {
 		}
 	}
 	p := m.providerFor(o.Container.Source)
-	ctx, req := m.begin(slotVersions)
+	ctx, req := m.begin(slotVersions, o.Container.Source.Kind)
 	return m.settled(ctx, func() tea.Msg {
 		items, err := p.Versions(ctx, o)
 		for i := range items {
@@ -1421,11 +1429,26 @@ func (m *Model) autoLoad(msg sourcesMsg) tea.Cmd {
 	return m.crawlStart()
 }
 
-// begin starts a cancellable request for pane p, cancelling any in flight.
-func (m *Model) begin(p slot) (context.Context, int) {
+// timeouts bound each provider request: its kind's, else the default.
+type timeouts struct {
+	def    time.Duration
+	byKind map[provider.Kind]time.Duration
+}
+
+// of is how long a request to a provider of kind k may take.
+func (t timeouts) of(k provider.Kind) time.Duration {
+	if d, ok := t.byKind[k]; ok {
+		return d
+	}
+	return t.def
+}
+
+// begin starts a cancellable request for pane p to a provider of kind k,
+// cancelling any in flight.
+func (m *Model) begin(p slot, k provider.Kind) (context.Context, int) {
 	m.cancelReq(p)
 	m.seq++
-	ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), m.timeout.of(k))
 	m.reqID[p], m.cancel[p] = m.seq, cancel
 	return ctx, m.seq
 }
@@ -1479,7 +1502,7 @@ func (m Model) sourcesCmd() tea.Cmd {
 	gen := m.sourcesGen
 	var cmds []tea.Cmd
 	for _, p := range m.providers {
-		ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), m.timeout.of(p.Kind()))
 		cmds = append(cmds, func() tea.Msg {
 			defer cancel()
 			s, err := p.Sources(ctx)
@@ -1490,7 +1513,7 @@ func (m Model) sourcesCmd() tea.Cmd {
 		})
 		// The source it started in, quickly, on its own.
 		if c, ok := p.(provider.Current); ok {
-			ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), m.timeout.of(p.Kind()))
 			cmds = append(cmds, func() tea.Msg {
 				defer cancel()
 				src, ok := c.Current(ctx)
@@ -1507,7 +1530,7 @@ func (m Model) sourcesCmd() tea.Cmd {
 
 func (m *Model) loadContainers(src provider.Source, key string) tea.Cmd {
 	p := m.providerFor(src)
-	ctx, req := m.begin(slotContainers)
+	ctx, req := m.begin(slotContainers, src.Kind)
 	return m.settled(ctx, func() tea.Msg {
 		items, err := p.Containers(ctx, src)
 		// Carry the source as given, with its provider ID, so later
@@ -1526,7 +1549,7 @@ func (m *Model) loadContainers(src provider.Source, key string) tea.Cmd {
 func (m *Model) loadObjects(c provider.Container, t provider.ObjectType, key string) tea.Cmd {
 	cands := m.candidates(c.Source)
 	known := len(cands) == 1 && cands[0].ID() == c.Source.Provider
-	ctx, req := m.begin(slotObjects)
+	ctx, req := m.begin(slotObjects, c.Source.Kind)
 	return m.settled(ctx, func() tea.Msg {
 		var errs []error
 		for _, p := range cands {
@@ -1554,7 +1577,7 @@ func (m *Model) loadObjects(c provider.Container, t provider.ObjectType, key str
 
 func (m *Model) fetchValue(s provider.Object) tea.Cmd {
 	p := m.providerFor(s.Container.Source)
-	ctx, req := m.begin(slotValue)
+	ctx, req := m.begin(slotValue, s.Container.Source.Kind)
 	m.detail.SetLoading()
 	return func() tea.Msg {
 		v, err := p.Value(ctx, s)
@@ -1573,7 +1596,7 @@ func (m *Model) describe(o provider.Object) tea.Cmd {
 		m.detail.SetDescribing()
 	}
 	p := m.providerFor(o.Container.Source)
-	ctx, req := m.begin(slotDescribe)
+	ctx, req := m.begin(slotDescribe, o.Container.Source.Kind)
 	return m.settled(ctx, func() tea.Msg {
 		obj, err := p.Describe(ctx, o)
 		return describeMsg{req: req, key: key, obj: obj, err: err}
@@ -1601,7 +1624,7 @@ func (m *Model) copyValue() tea.Cmd {
 		return m.copyText(o.Name, v.Reveal(), true)
 	}
 	p := m.providerFor(o.Container.Source)
-	ctx, req := m.begin(slotCopy)
+	ctx, req := m.begin(slotCopy, o.Container.Source.Kind)
 	m.flash = flash{text: "copying " + o.Name + "…"}
 	return func() tea.Msg {
 		v, err := p.Value(ctx, o)

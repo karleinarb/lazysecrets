@@ -196,7 +196,7 @@ func (m *Model) loadDetails(c provider.Container) tea.Cmd {
 		}
 	}
 	m.details[key] = detailsState{loading: true}
-	ctx, req := m.begin(slotDetails)
+	ctx, req := m.begin(slotDetails, c.Source.Kind)
 	return m.settled(ctx, func() tea.Msg {
 		attrs, err := d.Details(ctx, c)
 		if ctx.Err() != nil {

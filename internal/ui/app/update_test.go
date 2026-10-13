@@ -83,6 +83,12 @@ func TestUpdate(t *testing.T) {
 	if f2.asked != 1 {
 		t.Errorf("asked %d times a day later", f2.asked)
 	}
+	// With autoCheckInterval: 1h, two hours on is long enough.
+	mem.SetUpdateCheck(store.UpdateCheck{At: time.Now().Add(-2 * time.Hour), Tag: "v0.2.0"})
+	newDriverOpts(t, Options{Version: "0.1.1", Updater: f2.updater(), UpdateCheck: true, UpdateEvery: time.Hour, Store: mem})
+	if f2.asked != 2 {
+		t.Errorf("asked %d times, want a look after the hour", f2.asked)
+	}
 }
 
 func TestUpdateAsked(t *testing.T) {

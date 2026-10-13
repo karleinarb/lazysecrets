@@ -7,37 +7,45 @@ status pane (`0`) opens it in your editor, as in lazygit (making it if
 it isn't there yet); changes apply when lazysecrets starts again.
 
 ```yaml
-icons: true            # Nerd Font icons (v3+); also --icons=false or LAZYSECRETS_ICONS=0
-clipboardClear: 30s    # clear copied values from the clipboard after this long; 0s disables
-revealTimeout: 60s     # hide a revealed value after this long; 0s keeps it shown
-hideOnBlur: true       # hide a revealed value when the terminal loses focus (tmux: focus-events on)
-expiryWarningDays: 30  # mark secrets, keys and certificates expiring this soon (⚠ 12d); expired ones get ✗
-timeout: 30s           # per backend request
-loadDelay: 150ms       # how long the cursor rests on a row before it loads; 0s loads at once
-sourcesView: grouped   # or flat; ` toggles it
-collapseGroups: true   # start with the Sources pane's groups folded; enter or space unfolds one
-updateCheck: true      # look for a newer release once a day (U and lazysecrets update work either way)
-releases:              # where updates come from, tried in order (GitHub, or a Gitea or Forgejo server)
-  - https://github.com/karleinarb/lazysecrets
-  - https://git.kebcloud.no/keb/lazysecrets
-history: true          # count uses of items for Recent (R)
-cache: true            # keep what was loaded (never values) for the next start
+ui:
+  icons: true            # Nerd Font icons (v3+); also --icons=false or LAZYSECRETS_ICONS=0
+  sourcesView: grouped   # or flat; ` toggles it
+  collapseGroups: true   # start with the Sources pane's groups folded; enter or space unfolds one
+  loadDelay: 150ms       # how long the cursor rests on a row before it loads; 0s loads at once
+  expiryWarningDays: 30  # mark secrets, keys and certificates expiring this soon (⚠ 12d); expired ones get ✗
+values:
+  revealTimeout: 60s     # hide a revealed value after this long; 0s keeps it shown
+  hideOnBlur: true       # hide a revealed value when the terminal loses focus (tmux: focus-events on)
+  clipboardClear: 30s    # clear copied values from the clipboard after this long; 0s disables
+storage:
+  cache: true            # keep what was loaded (never values) for the next start
+  history: true          # count uses of items for Recent (R)
+updates:
+  autoCheck: true          # look for a newer release at startup (U and lazysecrets update work either way)
+  autoCheckInterval: 24h   # at most this often
+  updateSources:           # where updates come from, tried in order (GitHub, or a Gitea or Forgejo server)
+    - https://github.com/karleinarb/lazysecrets
+    - https://git.kebcloud.no/keb/lazysecrets
 providers:
+  timeout: 30s                           # per backend request; a provider's own timeout overrides it
   azure:                                 # applies to every az account
     enabled: true                        # default
+    timeout: 30s
     hideSubscriptions: [platform-mgmt]   # by name or ID
     vaults:                              # listed under "Pinned vaults", for vaults
       - https://kv-foo.vault.azure.net/  # you can read but not discover
   databricks:
     enabled: true
+    timeout: 30s
     hideProfiles: [test]
   repos:
     enabled: true
+    timeout: 30s
     roots: [~/git]
     paths: [~/work/infra]
     include: ["secrets/**"]
     exclude: ["**/testdata/**"]
-share:                 # sharing env files as encrypted links
+sharing:               # sharing env files as encrypted links
   key: https://kv-team.vault.azure.net/secrets/env-share  # or its lazysecrets:// link; for repos naming none
   keyRules:            # what a key's value must be
     minLength: 32      # characters, 16 at least
@@ -45,7 +53,7 @@ share:                 # sharing env files as encrypted links
 ```
 
 More, each on its own page: [repos](repos.md) (`providers.repos`),
-[sharing env files](links.md#sharing-env-files) (`share`), the
+[sharing env files](links.md#sharing-env-files) (`sharing`), the
 [link handler](links.md#from-the-browser-and-chat) (`linkHandler`),
 [keybindings](keys.md#rebinding-keys) (`keybinding`) and
 [custom commands](custom-commands.md) (`customCommands`).
@@ -84,7 +92,7 @@ theme:
 ```
 
 Icons need a [Nerd Font](https://www.nerdfonts.com) (v3+). If they render
-as boxes, turn them off with `icons: false`.
+as boxes, turn them off with `ui.icons: false`.
 
 ## Layering
 
@@ -112,7 +120,7 @@ lazysecrets windows can save to it without losing each other's changes.
 Revealing, copying, opening in the browser, sharing and jumping to an item
 count as using it: its record keeps when it was last used and how often,
 for Recent (`R`). Records kept only for usage are dropped after 90 days
-unused, and beyond the 100 most recent. `history: false` stops counting.
+unused, and beyond the 100 most recent. `storage.history: false` stops counting.
 
 It also keeps where you left lazysecrets in each folder (the selected
 source, vault or secret), and goes back there the next time it starts in
@@ -132,15 +140,16 @@ and copying always fetch the value live.
 Lists not loaded for 30 days are dropped, and so is everything from an
 account you're no longer signed in to. Repos aren't cached: their files
 are read from disk anyway. Deleting the file is always safe, and
-`cache: false` stops using it.
+`storage.cache: false` stops using it.
 
 ## Updates
 
-Once a day (`updateCheck`), in the background, lazysecrets asks for the
-latest release; within the day it reuses the answer from the state file.
-Releases are published on GitHub and on git.kebcloud.no, and it asks
-them in that order, the next when one doesn't answer within 5 seconds;
-`releases` lists others, such as a mirror of your own. Offline, or with
+At startup, in the background, lazysecrets asks for the latest release
+(`updates.autoCheck`), once a day or every `updates.autoCheckInterval`;
+until then it reuses the answer from the state file. Releases are
+published on GitHub and on git.kebcloud.no, and it asks them in that
+order, the next when one doesn't answer within 5 seconds;
+`updates.updateSources` lists others, such as a mirror of your own. Offline, or with
 every server down, it says nothing. A newer release shows in the footer, `v0.1.1 ↑ v0.2.0`; `U` (or
 `lazysecrets update --check`) shows its changelog.
 

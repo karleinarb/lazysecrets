@@ -599,11 +599,11 @@ func normalizeRemote(remote string) (string, string) {
 type lazysecretsFile struct {
 	Include []string `yaml:"include"`
 	Exclude []string `yaml:"exclude"`
-	Share   struct {
+	Sharing struct {
 		// Key is the link to the secret that encrypts the repo's
 		// shared env files (package share).
 		Key string `yaml:"key"`
-	} `yaml:"share"`
+	} `yaml:"sharing"`
 }
 
 // ShareKey is the share.key of the repo's .lazysecrets.yaml, if any.
@@ -619,7 +619,7 @@ func ShareKey(root string) (string, error) {
 	if err := yaml.Unmarshal(b, &f); err != nil {
 		return "", fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
 	}
-	return f.Share.Key, nil
+	return f.Sharing.Key, nil
 }
 
 // selector says which files to look at: user (the include/exclude of the

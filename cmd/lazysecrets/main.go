@@ -3,6 +3,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"flag"
 	"fmt"
@@ -106,7 +107,7 @@ func run() error {
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	dir := flag.String("dir", "", "start in this directory: its git repo's SOPS files, the ones under it first (default: the current directory)")
 	demo := flag.Bool("demo", false, "browse built-in sample data instead of real backends")
-	timeout := flag.Duration("timeout", 30*time.Second, "timeout for each backend request")
+	timeout := flag.Duration("timeout", 30*time.Second, "timeout for each backend request, every provider's (overrides the config)")
 	icons := flag.Bool("icons", true,
 		"show Nerd Font icons (needs a Nerd Font v3+); disable with --icons=false or LAZYSECRETS_ICONS=0")
 	clipClear := flag.Duration("clipboard-clear", 30*time.Second, "clear copied values from the clipboard after this long (0 disables)")
@@ -207,30 +208,49 @@ Flags:
 	// Precedence: flag > environment > config file > default.
 	set := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
-	if !set["timeout"] && cfg.Timeout > 0 {
-		*timeout = cfg.Timeout
+	// Each provider's own timeout, unless --timeout sets them all.
+	timeouts := map[provider.Kind]time.Duration{}
+	if !set["timeout"] {
+		if cfg.Providers.Timeout > 0 {
+			*timeout = cfg.Providers.Timeout
+		}
+		for k, d := range map[provider.Kind]time.Duration{
+			provider.KindAzure:      cfg.Providers.Azure.Timeout,
+			provider.KindDatabricks: cfg.Providers.Databricks.Timeout,
+			provider.KindRepo:       cfg.Providers.Repos.Timeout,
+		} {
+			if d > 0 {
+				timeouts[k] = d
+			}
+		}
 	}
-	if !set["clipboard-clear"] && cfg.ClipboardClear != nil {
-		*clipClear = *cfg.ClipboardClear
+	// timeoutFor is how long a request to a provider of kind k may take.
+	timeoutFor := func(k provider.Kind) time.Duration { return cmp.Or(timeouts[k], *timeout) }
+	if !set["clipboard-clear"] && cfg.Values.ClipboardClear != nil {
+		*clipClear = *cfg.Values.ClipboardClear
 	}
 	expiryDays := 30
-	if cfg.ExpiryWarningDays != nil {
-		expiryDays = *cfg.ExpiryWarningDays
+	if cfg.UI.ExpiryWarningDays != nil {
+		expiryDays = *cfg.UI.ExpiryWarningDays
 	}
 	revealTimeout := 60 * time.Second
-	if cfg.RevealTimeout != nil {
-		revealTimeout = *cfg.RevealTimeout
+	if cfg.Values.RevealTimeout != nil {
+		revealTimeout = *cfg.Values.RevealTimeout
 	}
 	loadDelay := 150 * time.Millisecond
-	if cfg.LoadDelay != nil {
-		loadDelay = *cfg.LoadDelay
+	if cfg.UI.LoadDelay != nil {
+		loadDelay = *cfg.UI.LoadDelay
+	}
+	var updateEvery time.Duration // 0: the app's default, a day
+	if cfg.Updates.AutoCheckInterval != nil {
+		updateEvery = *cfg.Updates.AutoCheckInterval
 	}
 	if !set["icons"] {
 		switch {
 		case os.Getenv("LAZYSECRETS_ICONS") != "":
 			*icons = os.Getenv("LAZYSECRETS_ICONS") != "0"
-		case cfg.Icons != nil:
-			*icons = *cfg.Icons
+		case cfg.UI.Icons != nil:
+			*icons = *cfg.UI.Icons
 		}
 	}
 
@@ -310,14 +330,20 @@ Flags:
 	log.SetOutput(io.Discard)
 
 	if getRef != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(getRef.Kind))
 		defer cancel()
 		return get(ctx, providers, st, *getRef)
 	}
 	if shareArgs != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		// The files from a repo, the key from whichever provider it's
+		// in: the longest timeout.
+		d := *timeout
+		for _, t := range timeouts {
+			d = max(d, t)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), d)
 		defer cancel()
-		return shareFiles(ctx, providers, st, cfg.Share.Key, shareRules(cfg), shareArgs, os.Stdout)
+		return shareFiles(ctx, providers, st, cfg.Sharing.Key, shareRules(cfg), shareArgs, os.Stdout)
 	}
 
 	// Links opened elsewhere (lazysecrets launch) can come here.
@@ -354,7 +380,7 @@ Flags:
 	// What was loaded last time, and where it was left in this folder.
 	var cacheFile, placeDir string
 	if !*demo {
-		if d, err := config.CacheDir(); err == nil && config.On(cfg.Cache) {
+		if d, err := config.CacheDir(); err == nil && config.On(cfg.Storage.Cache) {
 			cacheFile = filepath.Join(d, "cache.json")
 		}
 		placeDir = *dir
@@ -368,19 +394,21 @@ Flags:
 
 	m := app.New(providers, app.Options{
 		Timeout:        *timeout,
+		Timeouts:       timeouts,
 		Icons:          *icons,
 		ClipboardClear: *clipClear,
-		FlatSources:    cfg.SourcesView == "flat",
-		CollapseGroups: config.On(cfg.CollapseGroups),
+		FlatSources:    cfg.UI.SourcesView == "flat",
+		CollapseGroups: config.On(cfg.UI.CollapseGroups),
 		LoadDelay:      loadDelay,
-		NoHistory:      !config.On(cfg.History),
+		NoHistory:      !config.On(cfg.Storage.History),
 		OnActive:       onActive,
 		RevealTimeout:  revealTimeout,
 		ExpiryWarning:  time.Duration(expiryDays) * 24 * time.Hour,
-		HideOnBlur:     config.On(cfg.HideOnBlur),
+		HideOnBlur:     config.On(cfg.Values.HideOnBlur),
 		HandlerSetup:   setup,
-		Updater:        updater(cfg.Releases),
-		UpdateCheck:    config.On(cfg.UpdateCheck),
+		Updater:        updater(cfg.Updates.UpdateSources),
+		UpdateCheck:    config.On(cfg.Updates.AutoCheck),
+		UpdateEvery:    updateEvery,
 		Keys:           &keymap,
 		Commands:       cfg.CustomCommands,
 		Version:        versionString(),
@@ -390,7 +418,7 @@ Flags:
 		StatePath:      statePath,
 		Changelog:      lazysecrets.Changelog,
 		Dir:            placeDir,
-		ShareKey:       cfg.Share.Key,
+		ShareKey:       cfg.Sharing.Key,
 		ShareRules:     shareRules(cfg),
 		Open:           open,
 		Styles:         &theme,

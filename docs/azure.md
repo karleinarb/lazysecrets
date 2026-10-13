@@ -63,7 +63,7 @@ Secrets, keys and certificates, each on their own tab of the Secrets pane
 (`[`/`]`). `space` reveals a secret's value, or the public material of a
 key (PEM public key) or certificate; private key material is never
 fetched. `v` lists an item's versions. Items expiring within
-`expiryWarningDays` (30 by default) are marked `⚠ 12d`, expired ones `✗`.
+`ui.expiryWarningDays` (30 by default) are marked `⚠ 12d`, expired ones `✗`.
 
 The status pane (`0`) lists them across every vault loaded, opened or
 cached, soonest first, and its line counts them (`⚠ 3 expiring`); `enter`

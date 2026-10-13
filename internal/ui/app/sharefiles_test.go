@@ -137,7 +137,7 @@ func TestShareWithShareKeyConfirms(t *testing.T) {
 	}
 	root := cloneWith(t, map[string]string{
 		".env":              "A=1\n",
-		".lazysecrets.yaml": "share:\n  key: https://" + kv + "/secrets/db-password\n",
+		".lazysecrets.yaml": "sharing:\n  key: https://" + kv + "/secrets/db-password\n",
 	})
 	clip := &fakeClipboard{}
 	d := newDriverOpts(t, Options{Clipboard: clip, ShareRules: demoRules}, fake.Azure(0), repo.New(repo.Settings{Dir: root}))

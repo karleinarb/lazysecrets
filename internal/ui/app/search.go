@@ -295,10 +295,10 @@ func (m *Model) crawlNext() tea.Cmd {
 }
 
 func (m *Model) crawlCmd(job crawlJob) tea.Cmd {
-	timeout := m.timeout
 	if job.src != nil {
 		p := m.providerFor(*job.src)
 		src := *job.src
+		timeout := m.timeout.of(src.Kind)
 		return func() tea.Msg {
 			ctx, cancel := contextWithTimeout(timeout)
 			defer cancel()
@@ -311,6 +311,7 @@ func (m *Model) crawlCmd(job crawlJob) tea.Cmd {
 	}
 	c := *job.container
 	p := m.providerFor(c.Source)
+	timeout := m.timeout.of(c.Source.Kind)
 	return func() tea.Msg {
 		ctx, cancel := contextWithTimeout(timeout)
 		defer cancel()

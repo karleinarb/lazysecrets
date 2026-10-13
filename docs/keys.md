@@ -65,8 +65,8 @@ certificates as their subject, issuer, dates, names and thumbprint, with
 any other PEM block (a private key) named but not shown. `y` still copies
 it exactly as stored.
 
-A revealed value hides again after `revealTimeout` (60s) and when the
-terminal loses focus (`hideOnBlur`); see [config](config.md).
+A revealed value hides again after `values.revealTimeout` (60s) and
+when the terminal loses focus (`values.hideOnBlur`); see [config](config.md).
 
 ## Stars and notes
 

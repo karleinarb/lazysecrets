@@ -89,5 +89,5 @@ func shareFiles(ctx context.Context, providers []provider.Provider, st *store.St
 
 // shareRules are the config's share.keyRules.
 func shareRules(cfg config.Config) share.Rules {
-	return share.Rules{MinLength: cfg.Share.KeyRules.MinLength, MinClasses: cfg.Share.KeyRules.MinClasses}
+	return share.Rules{MinLength: cfg.Sharing.KeyRules.MinLength, MinClasses: cfg.Sharing.KeyRules.MinClasses}
 }
