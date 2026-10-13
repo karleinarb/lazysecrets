@@ -2,6 +2,19 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.1.2 – 2026-10-13
+
+### Added
+
+- Look for repos in the usual folders, not just ~/git ([#57](https://git.kebcloud.no/keb/lazysecrets/pulls/57)) ([47ef862](https://git.kebcloud.no/keb/lazysecrets/commit/47ef86293d757f965069b1ea100a4d53d5a9b876))
+- Config grouped by area, with per-provider timeouts and an update interval ([#60](https://git.kebcloud.no/keb/lazysecrets/pulls/60)) ([10d1fc6](https://git.kebcloud.no/keb/lazysecrets/commit/10d1fc63c75fbb91088119a2e81884e44c36c4a3))
+- The update changelog covers every version you missed ([#61](https://git.kebcloud.no/keb/lazysecrets/pulls/61)) ([75bab25](https://git.kebcloud.no/keb/lazysecrets/commit/75bab2528677086219817ff9bc08a36755c96dcd))
+
+### Fixed
+
+- Help and errors name sharing.key and sharing.keyRules, not share.* ([#64](https://git.kebcloud.no/keb/lazysecrets/pulls/64)) ([6b3edd4](https://git.kebcloud.no/keb/lazysecrets/commit/6b3edd45d83b9b2af06a40f1f7e67f35c6861a69))
+- Unambiguous repo key names, clearer config and key names, and a newer lazysecrets's files no longer stop an older one ([#66](https://git.kebcloud.no/keb/lazysecrets/pulls/66)) ([a81fcaa](https://git.kebcloud.no/keb/lazysecrets/commit/a81fcaa5a6cef3ce0d07d6195f3e7bbb98808253))
+
 ## v0.1.1 – 2026-10-13
 
 ### Added
