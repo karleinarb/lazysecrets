@@ -18,8 +18,8 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f
-	github.com/databricks/databricks-sdk-go v0.187.0
-	github.com/junegunn/fzf v0.74.4
+	github.com/databricks/databricks-sdk-go v0.188.0
+	github.com/junegunn/fzf v0.74.5
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/mod v0.42.0
 	golang.org/x/term v0.47.0
