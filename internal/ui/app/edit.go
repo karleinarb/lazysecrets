@@ -3,6 +3,7 @@ package app
 import (
 	"cmp"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,18 +14,20 @@ import (
 
 	"git.kebcloud.no/keb/lazysecrets/internal/browser"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
+	"git.kebcloud.no/keb/lazysecrets/internal/update"
 )
 
-// Opening a repo's file (e): SOPS files with sops edit, which decrypts
+// Opening a repo's file (e), or on the status pane the config: SOPS files with sops edit, which decrypts
 // them for the editor and encrypts them again after. Other files, inside
 // nvim: in that nvim, once lazysecrets has quit; else in $VISUAL or
 // $EDITOR, coming back after; else in the system's default app. On a
 // secret, editors that can open at a line start on its key.
 
 type editDoneMsg struct {
-	c    provider.Container
-	name string
-	err  error
+	c      provider.Container
+	name   string
+	config bool // the config file: read at startup
+	err    error
 }
 
 // sopsUnchanged is sops edit's exit code when the file wasn't changed.
@@ -44,6 +47,8 @@ func (m *Model) edit() tea.Cmd {
 	var c provider.Container
 	var o *provider.Object
 	switch m.focus {
+	case paneStatus: // like lazygit's status panel
+		return m.editConfig()
 	case paneSources:
 		m.flash = warning("select a file to open it")
 		return nil
@@ -93,6 +98,33 @@ func (m *Model) edit() tea.Cmd {
 	return m.openInEditor(f, finished)
 }
 
+// configHeader starts a config file made to be edited.
+const configHeader = "# lazysecrets config: " + update.DefaultRepo + "/src/branch/main/docs/config.md\n"
+
+// editConfig opens the user's config file (the first of them), as e
+// opens a file, making it if it isn't there yet: e on the status pane.
+func (m *Model) editConfig() tea.Cmd {
+	if len(m.configFiles) == 0 {
+		m.flash = warning("no config file")
+		return nil
+	}
+	path := m.configFiles[0]
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		err := os.MkdirAll(filepath.Dir(path), 0o755)
+		if err == nil {
+			err = os.WriteFile(path, []byte(configHeader), 0o644)
+		}
+		if err != nil {
+			m.flash = flash{text: "edit config: " + err.Error(), isErr: true}
+			return nil
+		}
+	}
+	name := filepath.Base(path)
+	return m.openInEditor(provider.File{Path: path}, func(err error) tea.Msg {
+		return editDoneMsg{name: name, config: true, err: err}
+	})
+}
+
 // plusLine are editors that open at a line with +N before the file.
 var plusLine = map[string]bool{
 	"vi": true, "vim": true, "nvim": true, "nano": true, "emacs": true, "emacsclient": true,
@@ -140,6 +172,10 @@ func (m *Model) handleEditDone(msg editDoneMsg) tea.Cmd {
 		return nil
 	case msg.err != nil:
 		m.flash = flash{text: "open " + msg.name + ": " + msg.err.Error(), isErr: true}
+		return nil
+	}
+	if msg.config {
+		m.flash = done("closed " + msg.name + ": restart lazysecrets to use it")
 		return nil
 	}
 	m.flash = done("closed " + msg.name)

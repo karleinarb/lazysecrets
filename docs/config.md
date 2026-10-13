@@ -2,7 +2,9 @@
 
 Optional, at `~/.config/lazysecrets/config.yaml` (or
 `$XDG_CONFIG_HOME/lazysecrets/config.yaml`, or `--config`). Flags override
-it. Unknown keys are an error, so typos don't go unnoticed.
+it. Unknown keys are an error, so typos don't go unnoticed. `e` on the
+status pane (`0`) opens it in your editor, as in lazygit (making it if
+it isn't there yet); changes apply when lazysecrets starts again.
 
 ```yaml
 icons: true            # Nerd Font icons (v3+); also --icons=false or LAZYSECRETS_ICONS=0

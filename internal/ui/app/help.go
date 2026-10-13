@@ -54,7 +54,8 @@ func (c contextHelp) ShortHelp() []key.Binding {
 	switch {
 	case c.focus == paneStatus:
 		details := key.NewBinding(key.WithKeys(k.Enter.Keys()...), key.WithHelp(k.Enter.Help().Key, "details"))
-		return append(b, details, k.Update, k.Help, k.Quit)
+		config := key.NewBinding(key.WithKeys(k.Edit.Keys()...), key.WithHelp(k.Edit.Help().Key, "edit config"))
+		return append(b, details, config, k.Update, k.Help, k.Quit)
 	case c.focus == paneDetail && c.account && c.of == paneStatus:
 		open := key.NewBinding(key.WithKeys(k.Open.Keys()...), key.WithHelp(k.Open.Help().Key, "open link"))
 		return append(b, k.Up, k.Down, copyField, open, k.Edit, k.Filter, k.Help, k.Quit)

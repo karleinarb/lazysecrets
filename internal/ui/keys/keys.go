@@ -114,7 +114,7 @@ func (m *Map) Actions() []Action {
 		a(Lists, "copyReference", &m.CopyRef, "copy reference", "secrets", "Copy the reference to use in config, e.g. @Microsoft.KeyVault(SecretUri=…) or {{secrets/scope/key}}."),
 		a(Lists, "versions", &m.Versions, "versions", "secrets", "List the versions of the selected item (Azure). Reveal, copy and share then act on the selected version."),
 		a(Lists, "openInBrowser", &m.Open, "open in browser", "secrets", "Open the selected subscription, vault or item in the browser (Azure portal or Databricks workspace)."),
-		a(Lists, "edit", &m.Edit, "open file", "secrets", "Open the selected SOPS or .env file, or the file of the selected secret at its line. SOPS files open with sops edit. Others open in the nvim lazysecrets runs in (quitting lazysecrets), else in $VISUAL or $EDITOR, else in the system's default app."),
+		a(Lists, "edit", &m.Edit, "open file", "secrets", "Open the selected SOPS or .env file, or the file of the selected secret at its line; on the status pane, your config (made if it isn't there yet). SOPS files open with sops edit. Others open in the nvim lazysecrets runs in (quitting lazysecrets), else in $VISUAL or $EDITOR, else in the system's default app."),
 
 		a(Lists, "share", &m.Share, "copy link", "share", "Copy a lazysecrets:// link to the selected subscription, workspace, vault, scope or secret, for sharing. From the versions view the link is pinned to that version."),
 		a(Lists, "shareMenu", &m.ShareMenu, "share", "share", "Choose what to share: the lazysecrets link, the plain Key Vault URL, the config reference, or the web page."),

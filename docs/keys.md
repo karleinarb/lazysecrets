@@ -122,7 +122,8 @@ Secrets. Going into it (`l`, or `4`) keeps it on that; there `j`/`k`,
 it's hidden.
 
 On top, the status pane (`0`) shows the version, a newer release and how
-your accounts are doing. Focused, the right pane lists more under the
+your accounts are doing; `e` there opens your [config](config.md) in your
+editor, as in lazygit. Focused, the right pane lists more under the
 logo (when there's room): the version and updates (`U`), each account
 (`L` on one that needs it signs in), what's expiring (`enter` goes to
 it), this session's errors, newest first (what a pane showed, or the

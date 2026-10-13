@@ -342,3 +342,53 @@ func TestEditorAtLine(t *testing.T) {
 		}
 	}
 }
+
+func TestEditConfig(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "lazysecrets", "config.yaml")
+	var opened []string
+	d := newDriverOpts(t, Options{ConfigFiles: []string{path}, OpenURL: func(u string) error { opened = append(opened, u); return nil }})
+	d.m.getenv = func(string) string { return "" }
+
+	// e on the status pane. No editor: the system's default app, on a
+	// config made for it.
+	d.keys("0", "e")
+	if !slices.Equal(opened, []string{path}) {
+		t.Errorf("opened %q", opened)
+	}
+	if b, err := os.ReadFile(path); err != nil || !strings.HasPrefix(string(b), "# lazysecrets config") {
+		t.Errorf("config made: %q, %v", b, err)
+	}
+
+	// Inside nvim: in that nvim; an existing config is left as it is.
+	os.WriteFile(path, []byte("icons: false\n"), 0o644)
+	d.m.getenv = func(k string) string { return map[string]string{"NVIM": "/tmp/nvim.sock"}[k] }
+	var nvim []string
+	d.m.nvimOpen = func(server, path string, line int) error {
+		nvim = append(nvim, server+" "+path)
+		return nil
+	}
+	if msg := d.m.editConfig()(); msg != (tea.QuitMsg{}) {
+		t.Errorf("didn't quit for nvim: %v", msg)
+	}
+	if want := []string{"/tmp/nvim.sock " + path}; !slices.Equal(nvim, want) {
+		t.Errorf("nvim got %q", nvim)
+	}
+	if b, _ := os.ReadFile(path); string(b) != "icons: false\n" {
+		t.Errorf("config changed: %q", b)
+	}
+
+	d.send(editDoneMsg{name: "config.yaml", config: true})
+	if !strings.Contains(d.m.flash.text, "restart") {
+		t.Errorf("flash %q", d.m.flash.text)
+	}
+}
+
+func TestStatusFooterEditsConfig(t *testing.T) {
+	t.Parallel()
+	d := newDriver(t)
+	d.keys("0")
+	if !strings.Contains(d.screen(), "e edit config") {
+		t.Errorf("no edit config in the footer:\n%s", d.screen())
+	}
+}
