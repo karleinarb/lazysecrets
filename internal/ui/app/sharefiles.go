@@ -38,7 +38,7 @@ type shareFilesMsg struct {
 type sealedMsg struct {
 	link ref.Ref
 	n    int
-	// from is the picker the key was picked in; nil for share.key's.
+	// from is the picker the key was picked in; nil for sharing.key's.
 	from *picker
 	err  error
 }

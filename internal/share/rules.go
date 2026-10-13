@@ -53,7 +53,7 @@ func (r Rules) Check(key []byte) error {
 	if len(has) == 0 {
 		return nil
 	}
-	return fmt.Errorf("its value has %s; share.keyRules needs %s",
+	return fmt.Errorf("its value has %s; sharing.keyRules needs %s",
 		strings.Join(has, " and "), strings.Join(needs, " and "))
 }
 

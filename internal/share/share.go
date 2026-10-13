@@ -259,8 +259,8 @@ func CheckPath(p string) error {
 	return nil
 }
 
-// DefaultKey is the key for a repo's files: share.key in the repo's
-// .lazysecrets.yaml, else general (share.key in the config). ok is false
+// DefaultKey is the key for a repo's files: sharing.key in the repo's
+// .lazysecrets.yaml, else general (sharing.key in the config). ok is false
 // when neither names one.
 func DefaultKey(root, general string) (key ref.Ref, ok bool, err error) {
 	link, err := repo.ShareKey(root)
@@ -276,7 +276,7 @@ func DefaultKey(root, general string) (key ref.Ref, ok bool, err error) {
 	}
 	key, err = ParseKey(link)
 	if err != nil {
-		return ref.Ref{}, false, fmt.Errorf("share.key in %s: %w", where, err)
+		return ref.Ref{}, false, fmt.Errorf("sharing.key in %s: %w", where, err)
 	}
 	return key, true, nil
 }

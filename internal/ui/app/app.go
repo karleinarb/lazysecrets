@@ -84,7 +84,7 @@ type Options struct {
 	// CacheFile keeps what was loaded between runs; "" keeps it for this
 	// run only.
 	CacheFile string
-	// ShareKey is the config's share.key: the secret that encrypts shared
+	// ShareKey is the config's sharing.key: the secret that encrypts shared
 	// env files, for repos whose .lazysecrets.yaml names none.
 	ShareKey string
 	// ShareRules are what a key's value must be to share with it.
@@ -281,8 +281,8 @@ type Model struct {
 	linked     []provider.Container // vaults opened from links, this session
 	open       *ref.Ref             // reference to open at startup
 
-	shareKey   string      // the config's share.key
-	shareRules share.Rules // and share.keyRules
+	shareKey   string      // the config's sharing.key
+	shareRules share.Rules // and sharing.keyRules
 
 	// A lazysecrets:// link found on the clipboard, offered in the footer.
 	dismissedLink string // the last link offered: not offered again

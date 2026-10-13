@@ -122,7 +122,7 @@ func run() error {
                                   for scripts: VAR=$(lazysecrets get <ref>)
   lazysecrets [flags] share [--key <secret>] <env file>...
                                   print a link to env files of a repo, encrypted
-                                  with a secret's value (default: share.key)
+                                  with a secret's value (default: sharing.key)
   lazysecrets [flags] keybindings print every action and its keys (with your
                                   config applied), as config to copy and edit
   lazysecrets handler install [--terminal NAME]

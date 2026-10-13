@@ -50,7 +50,7 @@ func shareFrom(t *testing.T, root string, paste bool) string {
 		t.Fatalf("selected %v, want the repo", src.ID)
 	}
 	d.keys("S", "f")
-	// No share.key set: it asks which secret, in Go to, which lists
+	// No sharing.key set: it asks which secret, in Go to, which lists
 	// only secrets.
 	v := d.m.search
 	if v == nil || v.picker == nil {
@@ -218,7 +218,7 @@ func TestShareInDemo(t *testing.T) {
 	}
 	// Too short a key: the picker stays, saying why.
 	d.send(tea.PasteMsg{Content: "https://kv-app-prod.vault.azure.net/secrets/db-password"})
-	if d.m.search == nil || !strings.Contains(d.m.search.picker.err, "Can't use db-password: its value has 28 characters; share.keyRules needs 32 (minLength)") {
+	if d.m.search == nil || !strings.Contains(d.m.search.picker.err, "Can't use db-password: its value has 28 characters; sharing.keyRules needs 32 (minLength)") {
 		t.Fatalf("not said in the picker: %v\n%s", d.m.search != nil, d.screen())
 	}
 	if !strings.Contains(d.screen(), "28 characters") {

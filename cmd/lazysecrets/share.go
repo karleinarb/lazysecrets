@@ -17,12 +17,12 @@ import (
 )
 
 // shareFiles prints a share link to env files of one repo, encrypted with
-// the --key secret's value, else the repo's or the config's share.key:
+// the --key secret's value, else the repo's or the config's sharing.key:
 //
 //	lazysecrets share .env apps/api/.env
 func shareFiles(ctx context.Context, providers []provider.Provider, st *store.Store, general string, rules share.Rules, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("share", flag.ContinueOnError)
-	keyLink := fs.String("key", "", "the secret to encrypt with: its lazysecrets:// link, Key Vault URL or reference (default: share.key)")
+	keyLink := fs.String("key", "", "the secret to encrypt with: its lazysecrets:// link, Key Vault URL or reference (default: sharing.key)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func shareFiles(ctx context.Context, providers []provider.Provider, st *store.St
 		return err
 	}
 	if !ok {
-		return errors.New("which secret to encrypt with? --key <secret>, or share.key in the repo's .lazysecrets.yaml or the config")
+		return errors.New("which secret to encrypt with? --key <secret>, or sharing.key in the repo's .lazysecrets.yaml or the config")
 	}
 	v, version, err := readKey(ctx, providers, st, key)
 	if err != nil {
@@ -87,7 +87,7 @@ func shareFiles(ctx context.Context, providers []provider.Provider, st *store.St
 	return err
 }
 
-// shareRules are the config's share.keyRules.
+// shareRules are the config's sharing.keyRules.
 func shareRules(cfg config.Config) share.Rules {
 	return share.Rules{MinLength: cfg.Sharing.KeyRules.MinLength, MinClasses: cfg.Sharing.KeyRules.MinClasses}
 }

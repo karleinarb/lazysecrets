@@ -606,7 +606,7 @@ type lazysecretsFile struct {
 	} `yaml:"sharing"`
 }
 
-// ShareKey is the share.key of the repo's .lazysecrets.yaml, if any.
+// ShareKey is the sharing.key of the repo's .lazysecrets.yaml, if any.
 func ShareKey(root string) (string, error) {
 	b, err := os.ReadFile(filepath.Join(root, ".lazysecrets.yaml"))
 	if errors.Is(err, os.ErrNotExist) {
