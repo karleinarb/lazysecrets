@@ -1,9 +1,11 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
@@ -40,6 +42,7 @@ type option struct {
 	group  string        // the source row it's in (search)
 	kind   provider.Kind // the kind of provider it's from (search)
 	hits   []int         // characters of the label the filter matched (Go to)
+	plain  bool          // a key in a plain env file: no key to encrypt with (Go to)
 	run    func(m *Model) tea.Cmd
 	// header makes this a section title: not selectable, and hidden
 	// while a filter narrows the list.
@@ -53,9 +56,13 @@ type modal struct {
 	options []option
 	cursor  int
 
-	// A text input instead of options; submit runs on enter.
-	input  *textinput.Model
-	submit func(m *Model, text string) tea.Cmd
+	// A text input instead of options; submit runs on enter (named
+	// submitLabel in the footer; "open" if empty). err says why the last
+	// one wasn't taken, under the input.
+	input       *textinput.Model
+	submit      func(m *Model, text string) tea.Cmd
+	submitLabel string
+	err         string
 
 	// A filter over the options: typing narrows them (all holds them
 	// all), so moving uses arrows or ctrl+j/k.
@@ -259,7 +266,10 @@ func (m Model) modalView() string {
 	foot := footer(move(km.MenuUp, km.MenuDown), hint(km.MenuSelect, "select"), hint(km.MenuClose, "dismiss"))
 	if p.input != nil {
 		body = append(body, " "+p.input.View())
-		foot = footer(hint(km.PopupSelect, "open"), hint(km.PopupClose, "cancel"))
+		if p.err != "" {
+			body = append(body, "", " "+m.st.Error.Render("✗ "+capitalize(p.err)))
+		}
+		foot = footer(hint(km.PopupSelect, cmp.Or(p.submitLabel, "open")), hint(km.PopupClose, "cancel"))
 	}
 
 	// Size from all options, not the ones shown or the cursor's, so the
@@ -405,4 +415,10 @@ func (m Model) overlay(base string) string {
 		lipgloss.NewLayer(base),
 		lipgloss.NewLayer(box).X(x).Y(y).Z(1),
 	).Render()
+}
+
+// capitalize upper-cases the first letter of a message.
+func capitalize(s string) string {
+	r, n := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[n:]
 }

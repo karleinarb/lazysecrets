@@ -311,8 +311,8 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 			c.Detail = "sops · " + strings.Join(meta.methods, ", ")
 		case isSops:
 			return // a SOPS file where .sops.yaml says SOPS files don't go
-		case isEnv(f):
-			c.Detail = "env · plain text"
+		case IsEnv(f):
+			c.Detail = provider.DetailPlainEnv
 		default:
 			return
 		}
@@ -412,6 +412,15 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	return provider.NewSecretValue(stdout.Bytes()), nil
 }
 
+// Contents reads the file c is.
+func (p *Provider) Contents(_ context.Context, c provider.Container) ([]byte, error) {
+	f, err := p.File(c, nil)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(f.Path)
+}
+
 // File is the file c is, and the line o's key is on.
 func (p *Provider) File(c provider.Container, o *provider.Object) (provider.File, error) {
 	path := c.ID
@@ -462,6 +471,16 @@ func (p *Provider) Locate(_ context.Context, host string) (string, bool, error) 
 		}
 	}
 	return "", false, nil
+}
+
+// Root is the root of the git repo dir is in, and the repo's ID: its
+// remote without scheme or .git (a repo link's host), else the root.
+func Root(dir string) (root, id string, err error) {
+	root, err = gitRoot(dir)
+	if err != nil {
+		return "", "", fmt.Errorf("%s isn't in a git repository", dir)
+	}
+	return root, info(root, "").id, nil
 }
 
 // --- git ---
@@ -568,6 +587,27 @@ func normalizeRemote(remote string) (string, string) {
 type lazysecretsFile struct {
 	Include []string `yaml:"include"`
 	Exclude []string `yaml:"exclude"`
+	Share   struct {
+		// Key is the link to the secret that encrypts the repo's
+		// shared env files (package share).
+		Key string `yaml:"key"`
+	} `yaml:"share"`
+}
+
+// ShareKey is the share.key of the repo's .lazysecrets.yaml, if any.
+func ShareKey(root string) (string, error) {
+	b, err := os.ReadFile(filepath.Join(root, ".lazysecrets.yaml"))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var f lazysecretsFile
+	if err := yaml.Unmarshal(b, &f); err != nil {
+		return "", fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
+	}
+	return f.Share.Key, nil
 }
 
 // selector says which files to look at: user (the include/exclude of the
@@ -618,7 +658,7 @@ func envFiles(root string, tracked []string) []string {
 	dirs := map[string]bool{".": true}
 	for _, f := range tracked {
 		isTracked[f] = true
-		if isEnv(f) {
+		if IsEnv(f) {
 			out = append(out, f)
 		}
 		if d := path.Dir(f); !dirs[d] && !inPackages(f) {
@@ -632,7 +672,7 @@ func envFiles(root string, tracked []string) []string {
 		}
 		for _, e := range entries {
 			f := path.Join(d, e.Name())
-			if e.Type().IsRegular() && !isTracked[f] && isEnv(f) {
+			if e.Type().IsRegular() && !isTracked[f] && IsEnv(f) {
 				out = append(out, f)
 			}
 		}
@@ -663,10 +703,10 @@ func inPackages(f string) bool {
 	return false
 }
 
-// isEnv reports whether a file is named like an env file with real values:
+// IsEnv reports whether a file is named like an env file with real values:
 // .env, .env.local, prod.env; not .env.example and the like, nor one in
 // dependencies.
-func isEnv(f string) bool {
+func IsEnv(f string) bool {
 	if inPackages(f) {
 		return false
 	}

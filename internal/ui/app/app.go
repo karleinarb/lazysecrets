@@ -24,6 +24,7 @@ import (
 	"git.kebcloud.no/keb/lazysecrets/internal/commands"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
+	"git.kebcloud.no/keb/lazysecrets/internal/share"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/icons"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/keys"
@@ -81,6 +82,11 @@ type Options struct {
 	// CacheFile keeps what was loaded between runs; "" keeps it for this
 	// run only.
 	CacheFile string
+	// ShareKey is the config's share.key: the secret that encrypts shared
+	// env files, for repos whose .lazysecrets.yaml names none.
+	ShareKey string
+	// ShareRules are what a key's value must be to share with it.
+	ShareRules share.Rules
 	// Dir is the folder lazysecrets runs in: it goes back to where it was
 	// left there, unless it was started on a link. "" doesn't.
 	Dir string
@@ -270,6 +276,9 @@ type Model struct {
 	linked     []provider.Container // vaults opened from links, this session
 	open       *ref.Ref             // reference to open at startup
 
+	shareKey   string      // the config's share.key
+	shareRules share.Rules // and share.keyRules
+
 	// A lazysecrets:// link found on the clipboard, offered in the footer.
 	dismissedLink string // the last link offered: not offered again
 	clipChecked   time.Time
@@ -455,6 +464,7 @@ func New(providers []provider.Provider, opts Options) Model {
 	m.spinning = true
 
 	m.cachePath, m.placeDir, m.sourcesAt = opts.CacheFile, opts.Dir, map[string]time.Time{}
+	m.shareKey, m.shareRules = opts.ShareKey, opts.ShareRules
 	m.configFiles, m.statePath, m.changelog = opts.ConfigFiles, opts.StatePath, changelogFields(opts.Changelog)
 	if m.cachePath != "" {
 		m.loadCacheFile()
@@ -570,6 +580,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case resolvedMsg:
 		m.handleResolved(msg)
 
+	case shareFilesMsg:
+		cmds = append(cmds, m.handleShareFiles(msg))
+
+	case sealedMsg:
+		cmds = append(cmds, m.handleSealed(msg))
+
+	case shareOpenedMsg:
+		cmds = append(cmds, m.handleShareOpened(msg))
+
 	case tea.PasteMsg:
 		cmds = append(cmds, m.handlePaste(msg))
 
@@ -660,12 +679,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.bound != nil {
 				msg.key = m.rebind(*msg.bound)
 			}
+			before := m.cache.objects[msg.key].value
 			m.cache.objects[msg.key] = entry[[]provider.Object]{msg.items, m.now()}
 			m.cacheDirty = true
 			if m.versionsOf != nil {
 				m.setVersions(msg.items)
 			} else {
 				m.secrets.SetItems(m.starredFirst(msg.items))
+				cmds = append(cmds, m.refreshShown(before))
 			}
 		}
 

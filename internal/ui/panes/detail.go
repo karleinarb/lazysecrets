@@ -60,6 +60,16 @@ func (d *Detail) ShowSecret(s provider.Object) {
 	d.container = &s.Container
 }
 
+// Refresh shows s's newer metadata if s is the secret shown, keeping
+// its account and any value shown or loading.
+func (d *Detail) Refresh(s provider.Object) {
+	if d.secret == nil || d.secret.ID != s.ID {
+		return
+	}
+	s.Container = d.secret.Container
+	d.secret = &s
+}
+
 // ShowContainer shows a container summary when no secret is selected.
 func (d *Detail) ShowContainer(c provider.Container) {
 	d.Clear()

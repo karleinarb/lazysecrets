@@ -299,7 +299,7 @@ func (p *Provider) Objects(ctx context.Context, c provider.Container, t provider
 				if s.ID == nil || deref(s.Managed) {
 					continue
 				}
-				out = append(out, secretObject(c, s))
+				out = append(out, secretObject(c, s, p.tenant(c.Source.ID)))
 			}
 		}
 	case provider.TypeKey:
@@ -392,7 +392,7 @@ func (p *Provider) Versions(ctx context.Context, o provider.Object) ([]provider.
 			}
 			for _, s := range page.Value {
 				if s.ID != nil {
-					out = append(out, secretObject(o.Container, s))
+					out = append(out, secretObject(o.Container, s, p.tenant(o.Container.Source.ID)))
 				}
 			}
 		}
@@ -425,8 +425,13 @@ func (p *Provider) Versions(ctx context.Context, o provider.Object) ([]provider.
 	default:
 		return nil, provider.ErrUnsupported
 	}
+	tenant := p.tenant(o.Container.Source.ID)
 	for i := range out {
 		out[i].Reference = versionedReference(out[i])
+		if o.Type != provider.TypeSecret { // secretObject's is the version's already
+			kind := map[provider.ObjectType]string{provider.TypeKey: "Key", provider.TypeCertificate: "Certificate"}[o.Type]
+			out[i].URL = portalAssetURL(tenant, kind, out[i].ID+"/"+out[i].Version) // the version's page
+		}
 	}
 	slices.SortFunc(out, func(a, b provider.Object) int { return b.Updated.Compare(a.Updated) })
 	return out, nil
@@ -453,11 +458,8 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	}
 	switch o.Type {
 	case provider.TypeSecret:
-		resp, err := vc.secrets.GetSecret(ctx, o.Name, o.Version, nil)
-		if err != nil {
-			return provider.SecretValue{}, cleanError(err)
-		}
-		return provider.NewSecretValue([]byte(deref(resp.Value))), nil
+		v, _, err := p.VersionedValue(ctx, o)
+		return v, err
 	case provider.TypeKey:
 		resp, err := vc.keys.GetKey(ctx, o.Name, o.Version, nil)
 		if err != nil {
@@ -481,7 +483,31 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	return provider.SecretValue{}, provider.ErrUnsupported
 }
 
-var _ provider.Locator = (*Provider)(nil)
+// VersionedValue is Value, with the version read.
+func (p *Provider) VersionedValue(ctx context.Context, o provider.Object) (provider.SecretValue, string, error) {
+	if o.Type != provider.TypeSecret {
+		v, err := p.Value(ctx, o)
+		return v, o.Version, err
+	}
+	vc, err := p.clients(o.Container.Detail)
+	if err != nil {
+		return provider.SecretValue{}, "", err
+	}
+	resp, err := vc.secrets.GetSecret(ctx, o.Name, o.Version, nil)
+	if err != nil {
+		return provider.SecretValue{}, "", cleanError(err)
+	}
+	version := o.Version
+	if resp.ID != nil {
+		version = resp.ID.Version()
+	}
+	return provider.NewSecretValue([]byte(deref(resp.Value))), version, nil
+}
+
+var (
+	_ provider.Locator   = (*Provider)(nil)
+	_ provider.Versioned = (*Provider)(nil)
+)
 
 // validHost guards the Resource Graph query against odd input.
 var validHost = regexp.MustCompile(`^[a-z0-9.-]+$`)

@@ -114,10 +114,14 @@ func run() error {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage:
   lazysecrets [flags]             browse secrets
   lazysecrets [flags] [open] <ref>
-                                  open a lazysecrets:// link, Key Vault URL,
-                                  @Microsoft.KeyVault(...) or {{secrets/scope/key}}
+                                  open a lazysecrets:// link (also a share link),
+                                  Key Vault URL, @Microsoft.KeyVault(...) or
+                                  {{secrets/scope/key}}
   lazysecrets [flags] get <ref>   print the value a lazysecrets:// link points at,
                                   for scripts: VAR=$(lazysecrets get <ref>)
+  lazysecrets [flags] share [--key <secret>] <env file>...
+                                  print a link to env files of a repo, encrypted
+                                  with a secret's value (default: share.key)
   lazysecrets [flags] keybindings print every action and its keys (with your
                                   config applied), as config to copy and edit
   lazysecrets handler install [--terminal NAME]
@@ -140,8 +144,14 @@ Flags:
 	}
 
 	var open, getRef *ref.Ref
+	var shareArgs []string
 	printKeys := false
 	switch args := flag.Args(); {
+	case len(args) > 0 && args[0] == "share":
+		shareArgs = args[1:]
+		if len(shareArgs) == 0 {
+			shareArgs = []string{} // still sharing: says how
+		}
 	case len(args) == 1 && args[0] == "keybindings":
 		printKeys = true
 	case len(args) == 2 && args[0] == "get":
@@ -304,6 +314,11 @@ Flags:
 		defer cancel()
 		return get(ctx, providers, st, *getRef)
 	}
+	if shareArgs != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		defer cancel()
+		return shareFiles(ctx, providers, st, cfg.Share.Key, shareRules(cfg), shareArgs, os.Stdout)
+	}
 
 	// Links opened elsewhere (lazysecrets launch) can come here.
 	var p *tea.Program
@@ -375,6 +390,8 @@ Flags:
 		StatePath:      statePath,
 		Changelog:      lazysecrets.Changelog,
 		Dir:            placeDir,
+		ShareKey:       cfg.Share.Key,
+		ShareRules:     shareRules(cfg),
 		Open:           open,
 		Styles:         &theme,
 		DefaultFg:      defaultFg,

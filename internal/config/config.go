@@ -14,6 +14,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/commands"
+	"git.kebcloud.no/keb/lazysecrets/internal/share"
 	"git.kebcloud.no/keb/lazysecrets/internal/update"
 )
 
@@ -54,6 +55,8 @@ type Config struct {
 	Providers      Providers `yaml:"providers"`
 	// LinkHandler sets how lazysecrets:// links open; see linkhandler.
 	LinkHandler LinkHandler `yaml:"linkHandler"`
+	// Share sets how env files are shared; see package share.
+	Share Share `yaml:"share"`
 	// CustomCommands run shell commands on the selected item; see
 	// package commands.
 	CustomCommands []commands.Command `yaml:"customCommands"`
@@ -80,6 +83,23 @@ type LinkHandler struct {
 	// Prompt offers to set up the link handler at startup when links
 	// don't open lazysecrets. Defaults to true.
 	Prompt *bool `yaml:"prompt"`
+}
+
+type Share struct {
+	// Key is the secret whose value encrypts shared files (its
+	// lazysecrets:// link, Key Vault URL or reference), for repos whose
+	// .lazysecrets.yaml doesn't name one.
+	Key string `yaml:"key"`
+	// KeyRules are what a key's value must be to share with it.
+	KeyRules KeyRules `yaml:"keyRules"`
+}
+
+// KeyRules default to 32 characters of 2 kinds (share.DefaultRules).
+type KeyRules struct {
+	MinLength int `yaml:"minLength"` // at least 16
+	// MinClasses is how many kinds of character: lowercase, uppercase,
+	// digits, symbols.
+	MinClasses int `yaml:"minClasses"`
 }
 
 type Providers struct {
@@ -220,6 +240,17 @@ func (c Config) validate(path string) error {
 		if _, err := update.API(r); err != nil || !strings.HasPrefix(r, "https://") {
 			return fmt.Errorf("%s: releases[%d]: %q is not an https:// repository address, like %s", path, i, r, update.GitHubRepo)
 		}
+	}
+	if k := c.Share.Key; k != "" {
+		if _, err := share.ParseKey(k); err != nil {
+			return fmt.Errorf("%s: share.key: %w", path, err)
+		}
+	}
+	if n := c.Share.KeyRules.MinLength; n != 0 && n < 16 {
+		return fmt.Errorf("%s: share.keyRules.minLength: %d is under 16", path, n)
+	}
+	if n := c.Share.KeyRules.MinClasses; n < 0 || n > 4 {
+		return fmt.Errorf("%s: share.keyRules.minClasses: %d is not between 1 and 4", path, n)
 	}
 	for i, v := range c.Providers.Azure.Vaults {
 		if !strings.HasPrefix(v, "https://") {

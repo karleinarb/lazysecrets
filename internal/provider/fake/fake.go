@@ -134,13 +134,14 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	return provider.NewSecretValue([]byte(v)), nil
 }
 
-// Locate finds the source holding the vault (by host) or the workspace.
+// Locate finds the source holding the vault (by host), the workspace or
+// the repo (by its remote).
 func (p *Provider) Locate(ctx context.Context, host string) (string, bool, error) {
 	if err := p.wait(ctx); err != nil {
 		return "", false, err
 	}
 	for _, src := range p.sources {
-		if p.kind == provider.KindDatabricks && src.Detail == host {
+		if (p.kind == provider.KindDatabricks || p.kind == provider.KindRepo) && strings.EqualFold(src.Detail, host) {
 			return src.ID, true, nil
 		}
 		for _, c := range p.containers[src.ID] {
@@ -331,6 +332,10 @@ func Azure(delay time.Duration) *Provider {
 	}, demoCert)
 
 	shared := p.addContainer(prod, "kv-shared-prod", "https://kv-shared-prod.vault.azure.net", allTypes...)
+	// A key to share env files with (S → f): random, as share.keyRules wants.
+	p.add(shared, provider.TypeSecret, provider.Object{
+		Name: "env-share", Enabled: &yes, Updated: base, Reference: secretRef("kv-shared-prod", "env-share"),
+	}, "q8Zt3VwL1mXc7Rk2Pj9Ys4Hn6Bf0Ga5Ud+Te/OiWlE=")
 	p.add(shared, provider.TypeSecret, provider.Object{
 		Name: "smtp-password", Enabled: &yes, Updated: base, Reference: secretRef("kv-shared-prod", "smtp-password"),
 	}, "smtp-demo-password")

@@ -1,7 +1,11 @@
 package app
 
 import (
+	"maps"
+	"slices"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
@@ -47,4 +51,32 @@ func (c cache) rememberCursor(parent, child string) {
 	if parent != "" && child != "" {
 		c.cursor[parent] = child
 	}
+}
+
+// refreshShown shows the selected secret's newer metadata when its list
+// reloaded with it changed from before (a cached list refreshed in the
+// background), and describes it afresh: its cached details came from
+// the old listing.
+func (m *Model) refreshShown(before []provider.Object) tea.Cmd {
+	s, ok := m.secrets.Selected()
+	if !ok || m.secrets.SelectedID() != m.selSecret {
+		return nil // a new selection is shown as usual
+	}
+	i := slices.IndexFunc(before, func(o provider.Object) bool { return o.ID == s.ID })
+	if i < 0 || sameListing(before[i], s) {
+		return nil
+	}
+	m.detail.Refresh(s)
+	delete(m.cache.details, detailKey(s))
+	return m.describe(s)
+}
+
+// sameListing reports whether a and b list the same: what a list
+// says of an object, not what describing it adds.
+func sameListing(a, b provider.Object) bool {
+	enabled := func(e *bool) bool { return e == nil || *e }
+	return a.Name == b.Name && a.Version == b.Version && enabled(a.Enabled) == enabled(b.Enabled) &&
+		a.Updated.Equal(b.Updated) && a.Expires.Equal(b.Expires) && a.ContentType == b.ContentType &&
+		maps.Equal(a.Tags, b.Tags) && a.Reference == b.Reference && a.URL == b.URL &&
+		slices.Equal(a.Attrs, b.Attrs)
 }

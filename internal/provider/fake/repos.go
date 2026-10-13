@@ -35,7 +35,7 @@ func Repos() *Provider {
 	// commit are what git says of it: "tracked", "ignored" or "untracked".
 	file := func(src provider.Source, path, method, git, commit string, kv ...string) {
 		sops := method != ""
-		detail := "env · plain text"
+		detail := provider.DetailPlainEnv
 		if sops {
 			detail = "sops · " + method
 		}
@@ -94,7 +94,7 @@ func Repos() *Provider {
 		"database.url", "postgres://app:stg-Pg-2b8d1L@pg-demo-stg:5432/app",
 		"stripe.secret_key", "sk_test_demo_51NxDemoKey0000")
 	file(api, "config/oauth.enc.json", "age", "tracked", "e03b6f1 · 2 months ago",
-		"github.client_secret", "ghs_demo0000000000000000000000",
+		"github.client_secret", "8f3c2a9d7e1b6f4a0c5d2e9b8a7f6c3d1e0b4a5f",
 		"google.client_secret", "GOCSPX-demo-000000000000")
 	file(api, ".env", "", "ignored", "",
 		"DATABASE_URL", "postgres://app:local@localhost:5432/app",
@@ -133,4 +133,19 @@ func format(path string) string {
 		return "yaml"
 	}
 	return "dotenv"
+}
+
+var _ provider.Contents = (*Provider)(nil)
+
+// Contents is a plain env file as KEY=value lines, from its keys, so the
+// demo repos' env files can be shared.
+func (p *Provider) Contents(ctx context.Context, c provider.Container) ([]byte, error) {
+	if c.Detail != provider.DetailPlainEnv {
+		return nil, provider.ErrUnsupported
+	}
+	var b strings.Builder
+	for _, o := range p.objects[listKey{c.ID, provider.TypeSecret}] {
+		b.WriteString(o.Name + "=" + p.values[o.ID] + "\n")
+	}
+	return []byte(b.String()), ctx.Err()
 }

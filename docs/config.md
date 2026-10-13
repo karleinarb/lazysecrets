@@ -37,9 +37,15 @@ providers:
     paths: [~/work/infra]
     include: ["secrets/**"]
     exclude: ["**/testdata/**"]
+share:                 # sharing env files as encrypted links
+  key: https://kv-team.vault.azure.net/secrets/env-share  # or its lazysecrets:// link; for repos naming none
+  keyRules:            # what a key's value must be
+    minLength: 32      # characters, 16 at least
+    minClasses: 2      # kinds: lowercase, uppercase, digits, symbols
 ```
 
-More, each on its own page: [repos](repos.md) (`providers.repos`), the
+More, each on its own page: [repos](repos.md) (`providers.repos`),
+[sharing env files](links.md#sharing-env-files) (`share`), the
 [link handler](links.md#from-the-browser-and-chat) (`linkHandler`),
 [keybindings](keys.md#rebinding-keys) (`keybinding`) and
 [custom commands](custom-commands.md) (`customCommands`).

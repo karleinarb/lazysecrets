@@ -47,6 +47,7 @@ func (m *Model) storeEntries() (favs, recent []option) {
 			out = append(out, entry{depth, sort, option{
 				label: m.pathLabel(r.Kind, path, account), note: n.Note, mark: " ",
 				id: prefix + key + "|" + acct, star: key, starAccount: acct, starred: n.StarredFor(acct),
+				plain: m.inPlainEnv(r),
 				run: func(m *Model) tea.Cmd {
 					m.used(key)
 					return run(m)
@@ -138,6 +139,30 @@ func (m Model) pathLabel(kind provider.Kind, path []string, account string) stri
 	return label
 }
 
+// inPlainEnv reports whether r is a key in a plain env file, as far as
+// the files loaded tell.
+func (m Model) inPlainEnv(r ref.Ref) bool {
+	if r.Kind != provider.KindRepo || r.Name == "" {
+		return false
+	}
+	file := r
+	file.Name, file.Type = "", ""
+	for _, e := range m.cache.containers {
+		for _, c := range e.value {
+			if c.Detail == provider.DetailPlainEnv && storeKey(c) == file.String() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// repoLabel draws a repo, or a file in it, as everywhere else: the repo
+// icon and colour, "app / apps/api/.env".
+func (m Model) repoLabel(repo string, file ...string) string {
+	return m.pathLabel(provider.KindRepo, append([]string{repo}, file...), "")
+}
+
 // sourceMatches reports whether src is the subscription or workspace r
 // links to.
 func sourceMatches(r ref.Ref, src provider.Source) bool {
@@ -192,7 +217,7 @@ func (m *Model) jumpTo(r ref.Ref, n store.Node) tea.Cmd {
 	case 1:
 		m.startNav(r, actGo, choices[0].sourceRow)
 	default:
-		m.chooseSource("Several accounts can see "+r.ContainerName(), r, actGo, choices)
+		m.chooseSource("Several accounts can see "+r.ContainerName(), r, actGo, choices, false)
 	}
 	return nil
 }

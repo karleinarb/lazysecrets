@@ -72,6 +72,10 @@ func TestLoadRejectsMistakes(t *testing.T) {
 		"view":       "sourcesView: tree\n",
 		"releases":   "releases: [git.example.com/team/lazysecrets]\n",
 		"http":       "releases: [http://git.example.com/team/lazysecrets]\n",
+		"share key":  "share:\n  key: https://kv.vault.azure.net/\n",
+		"workspace":  "share:\n  key: \"{{secrets/team/env-share}}\"\n",
+		"short keys": "share:\n  keyRules:\n    minLength: 8\n",
+		"classes":    "share:\n  keyRules:\n    minClasses: 5\n",
 	} {
 		if _, err := Load(write(t, content)); err == nil {
 			t.Errorf("%s: no error", name)

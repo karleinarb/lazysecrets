@@ -30,6 +30,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
@@ -331,6 +332,21 @@ func TestPortalURLs(t *testing.T) {
 	if got := portalAssetURL("", "Key", "https://kv.vault.azure.net/keys/k/v1"); got !=
 		"https://portal.azure.com/#asset/Microsoft_Azure_KeyVault/Key/https://kv.vault.azure.net/keys/k/v1" {
 		t.Errorf("asset URL = %q", got)
+	}
+}
+
+func TestSecretPages(t *testing.T) {
+	c := provider.Container{Detail: "https://kv-app.vault.azure.net/"}
+	base := "https://portal.azure.com/#@contoso.onmicrosoft.com/asset/Microsoft_Azure_KeyVault/Secret/https://kv-app.vault.azure.net/secrets/db"
+	for id, want := range map[string]string{
+		"https://kv-app.vault.azure.net/secrets/db":                                  base,                                       // listed: the secret's page
+		"https://kv-app.vault.azure.net/secrets/db/06140fa2b9a64869a96ef040f6d4dcab": base + "/06140fa2b9a64869a96ef040f6d4dcab", // a version's
+	} {
+		sid := azsecrets.ID(id)
+		o := secretObject(c, &azsecrets.SecretProperties{ID: &sid}, "contoso.onmicrosoft.com")
+		if o.URL != want {
+			t.Errorf("%s: %q, want %q", id, o.URL, want)
+		}
 	}
 }
 

@@ -167,6 +167,13 @@ type Current interface {
 	Current(ctx context.Context) (Source, bool)
 }
 
+// Versioned is implemented by providers whose secrets have versions: it
+// is Value, also returning the version read (the current one when
+// o.Version is empty), so a link can pin it.
+type Versioned interface {
+	VersionedValue(ctx context.Context, o Object) (SecretValue, string, error)
+}
+
 // Locator is implemented by providers that can find where a container lives,
 // to open links. address is a vault host (kv.vault.azure.net) or a
 // workspace host. It returns the ID of the source holding it.
@@ -180,6 +187,12 @@ type Files interface {
 	// File is where c is, and for o (nil for the whole file) the line its
 	// key is on.
 	File(c Container, o *Object) (File, error)
+}
+
+// Contents is implemented by providers whose containers are files, so
+// they can be shared (package share): the file as it is.
+type Contents interface {
+	Contents(ctx context.Context, c Container) ([]byte, error)
 }
 
 // File is a container's file, to open.
@@ -219,6 +232,10 @@ func (d *Denied) Error() string {
 }
 
 func (d *Denied) Unwrap() error { return d.Err }
+
+// DetailPlainEnv is the Detail of a container that is a plain (not
+// encrypted) env file in a repo.
+const DetailPlainEnv = "env · plain text"
 
 // ContainerDetails is implemented by providers that can say more about a
 // container than its listing does: how a file is encrypted and what git

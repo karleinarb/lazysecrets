@@ -46,6 +46,9 @@ type nav struct {
 	// quiet gives up without a word: going back to where lazysecrets
 	// was left, which may be gone.
 	quiet bool
+	// link ends on the object's details, as enter on it would: opening
+	// a link to it opens it, rather than just finding it in its list.
+	link bool
 }
 
 type resolvedMsg struct {
@@ -78,6 +81,9 @@ const (
 // just open it.
 // With ask false, vault and scope links open straight away.
 func (m *Model) offerRef(title string, r ref.Ref, ask bool) tea.Cmd {
+	if r.IsShare() {
+		return m.offerShare(r)
+	}
 	if r.IsContainer() || r.IsSource() {
 		if !ask {
 			return m.openRef(r, actGo)
@@ -398,23 +404,30 @@ func (m *Model) handleResolved(msg resolvedMsg) {
 		for i := range msg.choices {
 			msg.choices[i].label = "Open in " + msg.choices[i].label
 		}
-		m.chooseSource("Scope "+msg.ref.Scope+" is in several workspaces", msg.ref, msg.act, msg.choices)
+		m.chooseSource("Scope "+msg.ref.Scope+" is in several workspaces", msg.ref, msg.act, msg.choices, true)
 	case len(msg.others) > 0:
 		var choices []choice
 		for _, row := range append([]string{msg.sourceRow}, msg.others...) {
 			choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
 		}
-		m.chooseSource("Several accounts can see "+msg.ref.ContainerName(), msg.ref, msg.act, choices)
+		m.chooseSource("Several accounts can see "+msg.ref.ContainerName(), msg.ref, msg.act, choices, true)
 	case msg.linked != nil:
 		m.addLinked(*msg.linked)
-		m.startNav(msg.ref, msg.act, linksRowID)
+		m.startLinkNav(msg.ref, msg.act, linksRowID)
 	default:
-		m.startNav(msg.ref, msg.act, msg.sourceRow)
+		m.startLinkNav(msg.ref, msg.act, msg.sourceRow)
 	}
 }
 
+// startLinkNav opens a link: like startNav, ending on its object's
+// details.
+func (m *Model) startLinkNav(r ref.Ref, act linkAction, sourceRow string) {
+	m.startNav(r, act, sourceRow)
+	m.nav.link = true
+}
+
 // chooseSource asks where to open r.
-func (m *Model) chooseSource(title string, r ref.Ref, act linkAction, choices []choice) {
+func (m *Model) chooseSource(title string, r ref.Ref, act linkAction, choices []choice, link bool) {
 	var opts []option
 	for i, c := range choices {
 		key := ""
@@ -424,6 +437,7 @@ func (m *Model) chooseSource(title string, r ref.Ref, act linkAction, choices []
 		row := c.sourceRow
 		opts = append(opts, option{key: key, label: c.label, run: func(m *Model) tea.Cmd {
 			m.startNav(r, act, row)
+			m.nav.link = link
 			return nil
 		}})
 	}
@@ -574,6 +588,9 @@ func (m *Model) advanceNav() bool {
 				m.pendingCmd = m.toggleReveal()
 			}
 		}
+		if n.link {
+			m.focus = paneDetail // after: copying acts on the focused pane
+		}
 		return true
 	}
 	return false
@@ -607,6 +624,9 @@ func (m *Model) share(menu bool) tea.Cmd {
 		if s.URL != "" {
 			opts = append(opts, option{key: "b", label: webLabel(s.Kind), run: share("b")})
 		}
+		if m.canShareFiles(s) {
+			opts = append(opts, option{key: "f", label: "Encrypted link to its env files", run: func(m *Model) tea.Cmd { return m.shareFiles(s, nil) }})
+		}
 		m.showMenu("Share "+s.Name, nil, opts)
 	case paneContainers:
 		c, ok := m.containers.Selected()
@@ -628,6 +648,11 @@ func (m *Model) share(menu bool) tea.Cmd {
 		}
 		if c.URL != "" {
 			opts = append(opts, option{key: "b", label: webLabel(c.Source.Kind), run: share("b")})
+		}
+		if c.Detail == provider.DetailPlainEnv && m.canShareFiles(c.Source) {
+			opts = append(opts, option{key: "f", label: "Encrypted link to the file", run: func(m *Model) tea.Cmd {
+				return m.shareFiles(c.Source, []provider.Container{c})
+			}})
 		}
 		m.showMenu("Share "+c.Name, nil, opts)
 	default:
@@ -652,6 +677,11 @@ func (m *Model) share(menu bool) tea.Cmd {
 		}
 		if o.URL != "" {
 			opts = append(opts, option{key: "b", label: webLabel(o.Container.Source.Kind), run: share("b")})
+		}
+		if c := o.Container; c.Detail == provider.DetailPlainEnv && m.canShareFiles(c.Source) {
+			opts = append(opts, option{key: "f", label: "Encrypted link to its file", run: func(m *Model) tea.Cmd {
+				return m.shareFiles(c.Source, []provider.Container{c})
+			}})
 		}
 		m.showMenu("Share "+o.Name, nil, opts)
 	}
@@ -802,6 +832,9 @@ func (m *Model) openText(s string) tea.Cmd {
 
 // handlePaste opens a pasted reference, unless a text input has focus.
 func (m *Model) handlePaste(msg tea.PasteMsg) tea.Cmd {
+	if m.search != nil && m.search.picker != nil {
+		return m.pickPasted(msg.Content) // a reference to the secret
+	}
 	if p := m.prompt; p != nil && p.input != nil {
 		in, cmd := p.input.Update(msg)
 		p.input = &in

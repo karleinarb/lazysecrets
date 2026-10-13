@@ -40,7 +40,8 @@ func TestOpenSecretLink(t *testing.T) {
 	if src, c, s := d.selected(); src != "platform-prod" || c != "kv-app-prod" || s != "api-key" {
 		t.Fatalf("opened %s/%s/%s", src, c, s)
 	}
-	if d.m.focus != paneSecrets || d.m.detail.State() != panes.ValueHidden {
+	// Opened: on its details, as enter on it would; its value hidden.
+	if d.m.focus != paneDetail || d.m.detail.State() != panes.ValueHidden {
 		t.Errorf("focus %d, value state %d", d.m.focus, d.m.detail.State())
 	}
 }

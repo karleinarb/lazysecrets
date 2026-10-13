@@ -55,6 +55,14 @@ providers:
     exclude: ["**/testdata/**"]
 ```
 
+A repo's `.lazysecrets.yaml` can also name the secret its env files are
+[shared](links.md#sharing-env-files) with:
+
+```yaml
+share:
+  key: https://kv-team.vault.azure.net/secrets/env-share   # or its lazysecrets:// link
+```
+
 ## Decrypting
 
 Listing never decrypts: SOPS encrypts values only, so keys and metadata
@@ -89,6 +97,8 @@ editors taking `+N` (vim, nvim, nano, emacs, micro and others), and needs
 sops 3.8 or later.
 
 ## Links
+
+`S` → `f` shares env files as an [encrypted link](links.md#sharing-env-files).
 
 Links name the repo by its git remote, so they open in a colleague's clone
 wherever it is:

@@ -7,6 +7,11 @@ go test ./...
 go test ./internal/ui/app -run TestGolden -update   # after intentional UI changes
 ```
 
+In `--demo`, sharing env files works end to end: `S` → `f` on a demo
+repo, pick `kv-shared-prod / env-share` (the second account's) as the
+key, then paste the link back. The demo repos aren't on disk, so opening
+asks where to save, as for a repo you haven't cloned.
+
 A stripped binary is about 21 MB instead of 30 MB:
 
 ```sh

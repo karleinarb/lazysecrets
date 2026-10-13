@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -157,5 +158,35 @@ func TestMovingOnDropsUnsettledLoads(t *testing.T) {
 	runAll(stop)
 	if c.containers != before+1 {
 		t.Errorf("stopping on a subscription: %d calls, want 1", c.containers-before)
+	}
+}
+
+func TestReloadedListRefreshesShownSecret(t *testing.T) {
+	t.Parallel()
+	d, _, clock := newCachingDriver(t)
+	d.keys("3") // kv-app-prod's secrets, db-password selected
+	shown, _ := d.m.detail.Secret()
+	// What an older lazysecrets listed and cached for it.
+	const old = "https://portal.example/old"
+	key := d.m.selContainer
+	e := d.m.cache.objects[key]
+	items := slices.Clone(e.value)
+	for i := range items {
+		if items[i].ID == shown.ID {
+			items[i].URL = old
+		}
+	}
+	d.m.cache.objects[key] = entry[[]provider.Object]{items, e.at}
+	stale := shown
+	stale.URL = old
+	d.m.cache.details[detailKey(shown)] = entry[provider.Object]{stale, *clock}
+
+	// Away and back once the list is stale: it's shown from the cache,
+	// then reloaded, and the details pane follows.
+	d.keys("1", "j")
+	*clock = clock.Add(cacheTTL + time.Second)
+	d.keys("k", "3")
+	if got, _ := d.m.detail.Secret(); got.ID != shown.ID || got.URL == old {
+		t.Errorf("shown %s with %q after the reload", got.Name, got.URL)
 	}
 }

@@ -10,10 +10,14 @@
 //	lazysecrets://azure/<vault-host>[/<secrets|keys|certificates>[/<name>[/<version>]]]
 //	lazysecrets://databricks/<workspace-host>[/<scope>[/<key>]]
 //	lazysecrets://repo/<repo>[/<file>[/<key>]]
+//	lazysecrets://share/<sealed files>
 //
 // A repo is its git remote without scheme or .git
 // (git.kebcloud.no/keb/infra), the file its path in the repo and the key
 // its path in the file (db.password); slashes inside them are escaped.
+//
+// A share link carries files, encrypted (package share), instead of
+// naming something.
 //
 // Vault hosts always contain dots, so "subscriptions" can't be one.
 //
@@ -49,10 +53,19 @@ type Ref struct {
 	Type    provider.ObjectType
 	Name    string // object name; empty for a container link
 	Version string
+	// Share is a share link's sealed files, as in the link; the other
+	// fields are empty. Package share reads it.
+	Share string
 }
+
+// IsShare reports whether r is a share link.
+func (r Ref) IsShare() bool { return r.Share != "" }
 
 // IsSource reports whether r points at a subscription or workspace.
 func (r Ref) IsSource() bool {
+	if r.IsShare() {
+		return false
+	}
 	if r.Kind != provider.KindAzure {
 		return r.Scope == ""
 	}
@@ -60,7 +73,7 @@ func (r Ref) IsSource() bool {
 }
 
 // IsContainer reports whether r points at a vault or scope.
-func (r Ref) IsContainer() bool { return r.Name == "" && !r.IsSource() }
+func (r Ref) IsContainer() bool { return r.Name == "" && !r.IsSource() && !r.IsShare() }
 
 // ContainerName is the vault name (from its host) or the scope.
 func (r Ref) ContainerName() string {
@@ -111,6 +124,9 @@ func (r Ref) IdentifierURL() string {
 
 // String is the lazysecrets:// link.
 func (r Ref) String() string {
+	if r.IsShare() {
+		return Scheme + "://share/" + r.Share
+	}
 	if r.Kind == provider.KindAzure && r.Subscription != "" {
 		return Scheme + "://azure/subscriptions/" + url.PathEscape(r.Subscription)
 	}
@@ -208,6 +224,8 @@ var (
 	portalVault = regexp.MustCompile(`(?i)/providers/Microsoft\.KeyVault/vaults/([A-Za-z0-9-]+)`)
 	// …/asset/Microsoft_Azure_KeyVault/<Secret|Key|Certificate>/<identifier URL>
 	portalAsset = regexp.MustCompile(`(?i)/asset/Microsoft_Azure_KeyVault/[A-Za-z]+/(https://\S+)$`)
+	// a share link's sealed files: unpadded base64url
+	sealed = regexp.MustCompile(`^[A-Za-z0-9_-]{16,}$`)
 )
 
 // Parse reads any supported reference.
@@ -237,6 +255,12 @@ func parseLink(s string) (Ref, error) {
 	segs, err := pathSegments(u.EscapedPath())
 	if err != nil {
 		return Ref{}, err
+	}
+	if strings.EqualFold(u.Host, "share") {
+		if len(segs) != 1 || !sealed.MatchString(segs[0]) {
+			return Ref{}, errors.New("share link is cut short or garbled: copy all of it")
+		}
+		return Ref{Share: segs[0]}, nil
 	}
 	var r Ref
 	if len(segs) == 0 || segs[0] == "" {

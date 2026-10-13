@@ -14,6 +14,7 @@ import (
 
 	"git.kebcloud.no/keb/lazysecrets/internal/match"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
+	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/keys"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/panes"
@@ -51,6 +52,9 @@ type searchView struct {
 	src    int      // cursor in scopes
 	res    int      // cursor in shown
 	here   string   // the scope of the source Go to was opened from, if any
+
+	// picker, if set, makes Go to pick a secret instead of going to it.
+	picker *picker
 
 	// loaded are the scopes a search has loaded since the popup opened:
 	// typing loads the scope once, so lists that fail aren't asked for
@@ -267,6 +271,9 @@ func (v *searchView) match() []option {
 			}
 		}
 	}
+	if v.picker != nil {
+		cand = slices.DeleteFunc(slices.Clone(cand), func(o option) bool { _, ok := pickable(o); return !ok })
+	}
 	q := v.input.Value()
 	if q == "" {
 		return slices.Clone(cand)
@@ -423,9 +430,14 @@ func (m *Model) handleSearch(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case key.Matches(msg, k.sel):
 		switch {
+		case v.results && v.res < len(v.shown) && v.picker != nil:
+			r, _ := pickable(v.shown[v.res])
+			return v.picker.choose(m, r)
 		case v.results && v.res < len(v.shown):
 			m.search = nil
 			return v.shown[v.res].run(m)
+		case !v.results && v.picker != nil:
+			v.results = true // a picker only narrows to the scope
 		case !v.results && v.onSource():
 			m.search = nil
 			return v.scope().run(m)
@@ -641,7 +653,16 @@ func (m Model) searchViewBox() string {
 	v := m.search
 	focused := !m.termBlurred
 	w := searchWidth(m.w)
+	popupW := w
+	if v.picker != nil {
+		w -= 4 // inside the picker's border, in the popup
+	}
 	listH := max(5, min(m.h-10, 14))
+	if v.picker != nil {
+		// What it's for, the help, a line or two on the key picked, the
+		// tabs and a border more.
+		listH = max(5, min(m.h-10-len(v.picker.lines)-len(v.picker.help)-8, 14))
+	}
 
 	srcW := 10
 	for _, o := range v.scopes {
@@ -733,7 +754,24 @@ func (m Model) searchViewBox() string {
 		lists = panes.BoxCounted(m.st, title(resultsTitle, true), "", counter(v.res, len(v.shown)), right, resW, listH, focused)
 	}
 
-	body := []string{" " + v.input.View(), ""}
+	ts := panes.TitleStyle(m.st, focused)
+	var body []string
+	if p := v.picker; p != nil {
+		for _, l := range p.help {
+			body = append(body, " "+l)
+		}
+		switch {
+		case p.busy != "":
+			body = append(body, "", " "+m.st.Notice.Render(p.busy))
+		case p.err != "":
+			body = append(body, "")
+			for _, l := range strings.Split(ansi.Wordwrap(p.err, w-4, " "), "\n") {
+				body = append(body, " "+m.st.Error.Render(l))
+			}
+		}
+		body = append(body, "", " "+m.goToTabs(ts))
+	}
+	body = append(body, " "+v.input.View(), "")
 	for _, l := range strings.Split(lists, "\n") {
 		body = append(body, " "+l)
 	}
@@ -753,26 +791,83 @@ func (m Model) searchViewBox() string {
 		if v.tab == tabSearch {
 			hints = append(hints, keyHint{joinKeys(km.SearchSources, km.SearchResults), "switch list"}, hint(km.SearchLoad, "load"))
 		}
-		foot = footer(append(hints, hint(km.PopupStar, "star"), hint(km.PopupSelect, "go"), hint(km.PopupClose, "stop typing"))...)
+		foot = footer(append(hints, hint(km.PopupStar, "star"), hint(km.PopupSelect, v.selectLabel()), hint(km.PopupClose, "stop typing"))...)
 	default:
 		hints := []keyHint{move(km.GoUp, km.GoDown), {joinKeys(km.GoPrevTab, km.GoNextTab), "tab"}}
 		if v.tab == tabSearch {
 			hints = append(hints, keyHint{joinKeys(km.GoSources, km.GoResults), "list"}, hint(km.GoLoad, "load"), hint(km.GoLoadAll, "load all"))
 		}
-		foot = footer(append(hints, hint(km.GoFilter, "filter"), hint(km.GoStar, "star"), hint(km.GoSelect, "go"), hint(km.GoClose, "close"))...)
+		foot = footer(append(hints, hint(km.GoFilter, "filter"), hint(km.GoStar, "star"), hint(km.GoSelect, v.selectLabel()), hint(km.GoClose, "close"))...)
 	}
-	// Tabs in the title, the current one underlined, like the panes.
-	ts := panes.TitleStyle(m.st, focused)
-	head := ts.Render(goToTitle + " ")
+	// Tabs in the title, the current one underlined, like the panes; a
+	// picker has its own title, and the tabs over the input.
+	if v.picker == nil {
+		head := ts.Render(goToTitle+" ") + m.goToTabs(ts)
+		return panes.Box(m.st, head, foot, body, w, len(body)+2, focused)
+	}
+	// A picker: in its own border, under what it's for.
+	var outer []string
+	for _, l := range v.picker.lines {
+		outer = append(outer, " "+l)
+	}
+	outer = append(outer, "")
+	for _, l := range strings.Split(panes.Box(m.st, ts.Render(v.picker.heading), "", body, w, len(body)+2, focused), "\n") {
+		outer = append(outer, " "+l)
+	}
+	return panes.Box(m.st, ts.Render(v.picker.title), foot, outer, popupW, len(outer)+2, focused)
+}
+
+// picker is Go to picking a secret for something (the key to share
+// with): it lists secrets only, and enter hands the selected one's link
+// to pick, which closes Go to when it's done with it.
+type picker struct {
+	pick    func(m *Model, r ref.Ref) tea.Cmd
+	title   string   // the popup's
+	lines   []string // what picking is for, above the picker
+	heading string   // the picker's title, on its border
+	help    []string // inside it, above the tabs
+	busy    string   // what the pick is doing (picks wait meanwhile)
+	err     string   // why the secret picked can't be used
+}
+
+// choose hands r to the picker, unless it's still busy with one.
+func (p *picker) choose(m *Model, r ref.Ref) tea.Cmd {
+	if p.busy != "" {
+		return nil
+	}
+	return p.pick(m, r)
+}
+
+// selectLabel names what enter does with the selected entry.
+func (v *searchView) selectLabel() string {
+	if v.picker != nil {
+		return "pick"
+	}
+	return "go"
+}
+
+// pickable is the link of a Go to entry that a picker can pick: a
+// secret (not a key or certificate, nor a key in a plain env file).
+func pickable(o option) (ref.Ref, bool) {
+	r, err := ref.Parse(o.star)
+	if err != nil || o.plain || r.IsShare() || r.IsSource() || r.IsContainer() || (r.Type != "" && r.Type != provider.TypeSecret) {
+		return ref.Ref{}, false
+	}
+	return r, true
+}
+
+// goToTabs draws Go to's tabs, the current one underlined.
+func (m Model) goToTabs(ts lipgloss.Style) string {
+	var out string
 	for i, name := range tabNames {
 		if i > 0 {
-			head += ts.Render(" - ")
+			out += ts.Render(" - ")
 		}
-		if i == v.tab {
-			head += ts.Underline(true).Render(name)
+		if i == m.search.tab {
+			out += ts.Underline(true).Render(name)
 		} else {
-			head += m.st.Muted.Render(name)
+			out += m.st.Muted.Render(name)
 		}
 	}
-	return panes.Box(m.st, head, foot, body, w, len(body)+2, focused)
+	return out
 }

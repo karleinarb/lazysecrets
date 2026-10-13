@@ -14,7 +14,8 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
   fzf-style matching.
 - **Share links**: Share `lazysecrets://` links with colleagues. A colleague opens it
   with their own access, from the terminal or with a click in the browser
-  or chat.
+  or chat. `.env` files can be shared too, as a link encrypted with a
+  secret your team can read.
 - **Neovim integration**: via [lazysecrets.nvim](https://github.com/karleinarb/lazysecrets.nvim)
 - **Careful with values**: values stay hidden until you reveal them, and
   copied values are cleared from the clipboard after 30 seconds.

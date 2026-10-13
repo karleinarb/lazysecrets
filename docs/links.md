@@ -1,9 +1,10 @@
 # Links
 
-Every subscription, workspace, vault, scope, repo, file and secret has a
-`lazysecrets://` link. Share one in chat or a ticket, and whoever opens it
-lands on that item, reading it with their own account and permissions:
-links carry names, never values.
+Subscriptions, workspaces, vaults, scopes, repos, files and secrets can
+be shared as a `lazysecrets://` link, in chat or a ticket. Whoever opens
+it lands on that item, reading it with their own account and
+permissions: the link names the item, never its value. Env files can
+also be [shared encrypted](#sharing-env-files), in the link itself.
 
 ```
 lazysecrets://azure/kv-app-prod.vault.azure.net                              vault
@@ -20,10 +21,83 @@ lazysecrets://repo/git.example.com%2Fteam%2Finfra/secrets%2Fapp.yaml/db.password
 that version). `S` opens the share menu:
 
 - secrets: the link (`o`), the plain Key Vault URL (`u`), the config
-  reference (`y`) or the web page (`b`)
+  reference (`y`) or the web page (`b`); in an env file, also the file as
+  an [encrypted link](#sharing-env-files) (`f`)
 - vaults and scopes: a link (`o`), a link that opens on the current tab
   (`t`), the plain vault URL (`u`) or the web page (`b`)
 - subscriptions and workspaces: a link (`o`) or the web page (`b`)
+- repos and env files: also their env files as an
+  [encrypted link](#sharing-env-files) (`f`)
+
+## Sharing env files
+
+`.env` files usually live only on your machine. `S` → `f` shares them as
+an encrypted link, on a repo (all its plain env files), an env file, or a
+key in one (its file):
+
+```
+lazysecrets://share/AQ…
+```
+
+The files are encrypted with a secret's value, so whoever can read that
+secret (in Key Vault, Databricks or a repo's SOPS file) can open the link,
+and nobody else: who may open it is up to the vault's access, as for
+everything else. Make a secret for it once, random:
+
+```sh
+az keyvault secret set --vault-name kv-team --name env-share --value "$(openssl rand -base64 32)"
+```
+
+and name it in the repo's `.lazysecrets.yaml` (committed: the whole team
+uses it) or your config (for repos that don't name one), by its
+`lazysecrets://` link, Key Vault URL or `@Microsoft.KeyVault(...)`
+reference:
+
+```yaml
+share:
+  key: https://kv-team.vault.azure.net/secrets/env-share
+```
+
+With neither, sharing asks which secret, in [Go to](keys.md#go-to): it
+lists only secrets, and `enter` picks one (pasting a reference picks it
+too).
+
+Anyone with a link can try to guess the key, so sharing refuses one that
+isn't long and varied enough, saying how (never showing it). By default
+that's 32 characters of two kinds; your config can ask for more, or less:
+
+```yaml
+share:
+  keyRules:
+    minLength: 32    # characters; 16 at least
+    minClasses: 2    # kinds of character: lowercase, uppercase, digits, symbols
+```
+
+Opening a link doesn't check them.
+
+On the command line, `lazysecrets share [--key <secret>] <env file>...`
+prints the link.
+
+Opening a share link says which repo it's from, how many files and which
+secret it's encrypted with, and decrypts only when asked: lazysecrets
+reads the secret with your access, then shows where each file goes in
+your clone of the repo (or asks for a folder, if it isn't here), which
+ones would replace a file there and which ones git doesn't ignore. It
+saves them all, only the new ones, or none. New files are readable by you
+only.
+
+A link holds the files' paths and contents encrypted ([age](https://age-encryption.org),
+the secret's value as passphrase); the repo, the secret and the number of
+files are in the clear. Links stay under 16 KB, which fits chat and
+tickets.
+
+A link stays readable as long as its secret is. On Azure it's pinned to
+the secret's version, so adding a new version (rotating) doesn't break
+old links, and disabling the old version, or taking away someone's
+access, shuts them out; Databricks secrets have no versions, so changing
+the value breaks every old link. Whoever has read the secret's value
+before can decrypt links made with it without asking the vault, so rotate
+it now and then: new links use the newest version.
 
 ## Opening
 
@@ -44,9 +118,9 @@ read the clipboard over SSH.
 
 lazysecrets finds the vault in your accounts (one Resource Graph query per
 account) and jumps to it, asking which account to use when several can see
-it. Links say what, not what to do: opening a link to a secret asks whether
-to just go to it, also copy or show its value, or (`y`) copy its value
-without going there.
+it, ending on a secret's details as `enter` on it would. Links say what,
+not what to do: opening a link to a secret asks whether to just go to it,
+also copy or show its value, or (`y`) copy its value without going there.
 
 ## In scripts
 

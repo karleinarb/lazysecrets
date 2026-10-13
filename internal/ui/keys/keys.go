@@ -117,7 +117,7 @@ func (m *Map) Actions() []Action {
 		a(Lists, "edit", &m.Edit, "open file", "secrets", "Open the selected SOPS or .env file, or the file of the selected secret at its line; on the status pane, your config (made if it isn't there yet). SOPS files open with sops edit. Others open in the nvim lazysecrets runs in (quitting lazysecrets), else in $VISUAL or $EDITOR, else in the system's default app."),
 
 		a(Lists, "share", &m.Share, "copy link", "share", "Copy a lazysecrets:// link to the selected subscription, workspace, vault, scope or secret, for sharing. From the versions view the link is pinned to that version."),
-		a(Lists, "shareMenu", &m.ShareMenu, "share", "share", "Choose what to share: the lazysecrets link, the plain Key Vault URL, the config reference, or the web page."),
+		a(Lists, "shareMenu", &m.ShareMenu, "share", "share", "Choose what to share: the lazysecrets link, the plain Key Vault URL, the config reference, the web page, or env files as an encrypted link."),
 		a(Lists, "openLink", &m.OpenRef, "open link", "share", "Open a lazysecrets:// link, Key Vault URL or reference. Pasting one into lazysecrets does the same."),
 
 		a(Lists, "dividerLeft", &m.SplitLeft, "divider left", "layout", "Move the divider between the left panes and the detail pane to the left."),

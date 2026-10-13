@@ -61,13 +61,14 @@ func (m *Model) searchEntries() (sources, items []option) {
 	var es []entry
 	// key is the store key, so ctrl+f stars the entry; mark shows how
 	// much is loaded, reload (ctrl+r) loads it again.
-	add := func(depth int, row string, kind provider.Kind, path []string, account, key, mark string, run, reload func(*Model) tea.Cmd) {
+	add := func(depth int, row string, kind provider.Kind, path []string, account, key, mark string, run, reload func(*Model) tea.Cmd) *option {
 		n := m.store.Node(key)
 		sort := strings.ToLower(strings.Join(path, "/")) + " " + account
 		es = append(es, entry{depth, sort,
 			option{label: m.pathLabel(kind, path, account), note: n.Note, star: key,
 				starAccount: providerOf(row), starred: n.StarredFor(providerOf(row)),
 				mark: mark, run: run, reload: reload, id: sort, group: row, kind: kind}})
+		return &es[len(es)-1].opt
 	}
 	for _, p := range m.providers {
 		for _, src := range m.sourceResults[p.ID()].sources {
@@ -98,10 +99,11 @@ func (m *Model) searchEntries() (sources, items []option) {
 							typ := strings.TrimSuffix(strings.ToLower(pluralLabels[t]), "s") // "key"
 							suffix = strings.Trim(typ+" · "+suffix, " ·")
 						}
-						add(2, row, c.Source.Kind, []string{src.Name, c.Name, o.Name}, suffix, objectKey(o), " ", func(m *Model) tea.Cmd {
+						e := add(2, row, c.Source.Kind, []string{src.Name, c.Name, o.Name}, suffix, objectKey(o), " ", func(m *Model) tea.Cmd {
 							m.startNav(r, actGo, row)
 							return nil
 						}, reload)
+						e.plain = c.Detail == provider.DetailPlainEnv
 					}
 				}
 			}

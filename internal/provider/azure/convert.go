@@ -53,8 +53,8 @@ func PortalResourceURL(tenant, resourceID, blade string) string {
 	return portal + tenantPrefix(tenant) + "resource" + resourceID + "/" + blade
 }
 
-// portalAssetURL links to a Key Vault object's page; objectID must include
-// the version.
+// portalAssetURL links to a Key Vault object's page: a version's with
+// one in objectID; a secret's own (its versions) without.
 func portalAssetURL(tenant, kind, objectID string) string {
 	return portal + tenantPrefix(tenant) + "asset/Microsoft_Azure_KeyVault/" + kind + "/" + objectID
 }
@@ -88,7 +88,10 @@ func objectURL(c provider.Container, collection, name string) string {
 	return strings.TrimSuffix(c.Detail, "/") + "/" + collection + "/" + name
 }
 
-func secretObject(c provider.Container, p *azsecrets.SecretProperties) provider.Object {
+// secretObject is a secret, or a version of one, from a listing. Its URL
+// is its page in the portal: the secret's (with its versions), or with
+// a version, that version's.
+func secretObject(c provider.Container, p *azsecrets.SecretProperties, tenant string) provider.Object {
 	name := p.ID.Name()
 	url := objectURL(c, "secrets", name)
 	o := provider.Object{
@@ -100,7 +103,7 @@ func secretObject(c provider.Container, p *azsecrets.SecretProperties) provider.
 		ContentType: deref(p.ContentType),
 		Tags:        tags(p.Tags),
 		Reference:   "@Microsoft.KeyVault(SecretUri=" + url + ")",
-		URL:         ObjectListURL(c, provider.TypeSecret),
+		URL:         portalAssetURL(tenant, "Secret", strings.TrimSuffix(url+"/"+p.ID.Version(), "/")),
 	}
 	if a := p.Attributes; a != nil {
 		o.Enabled, o.Updated, o.Expires = a.Enabled, deref(a.Updated), deref(a.Expires)
