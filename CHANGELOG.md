@@ -2,6 +2,13 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.1.1 – 2026-10-13
+
+### Added
+
+- `e` on the status pane edits the config ([#55](https://git.kebcloud.no/keb/lazysecrets/pulls/55)) ([2044341](https://git.kebcloud.no/keb/lazysecrets/commit/2044341b20d795fa7cadcabb9514631990993e0a))
+- Share env files as encrypted links ([#54](https://git.kebcloud.no/keb/lazysecrets/pulls/54)) ([4377eb9](https://git.kebcloud.no/keb/lazysecrets/commit/4377eb98bf0dd523d5c4371bf84668412053290e))
+
 ## v0.1.0 – 2026-10-12
 
 Hello world 👋
