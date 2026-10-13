@@ -36,6 +36,8 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
 On macOS or Linux (arm64 or x86_64):
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/karleinarb/lazysecrets/main/install.sh | sh
+# Or
 curl -fsSL https://git.kebcloud.no/keb/lazysecrets/raw/branch/main/install.sh | sh
 ```
 
