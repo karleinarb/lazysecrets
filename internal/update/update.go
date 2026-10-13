@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -53,17 +54,43 @@ const maxDownload = 200 << 20
 
 // Release is a published release.
 type Release struct {
-	Tag  string `json:"tag_name"`
-	Body string `json:"body"` // the changelog section, then install notes
-	URL  string `json:"html_url"`
+	Tag string `json:"tag_name"`
+	// Body is the changelog section, then install notes. From Latest,
+	// it's the changelogs of the recent releases, each under a "## v…"
+	// heading, so someone a few versions behind sees all they missed.
+	Body       string `json:"body"`
+	URL        string `json:"html_url"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
 }
 
-// Notes is the release's changelog: its body without the install notes
-// every release ends with.
-func (r Release) Notes() string {
-	notes, _, _ := strings.Cut(r.Body, "## Install")
+// Notes is the changelog since the version current: of each release
+// newer than it (just this one for a dev build), without the install
+// notes every release ends with.
+func (r Release) Notes(current string) string {
+	body, _, _ := strings.Cut(r.Body, "## Install")
+	var keep, headings []string
+	in := true // before any heading: a single release's notes
+	for _, l := range strings.Split(body, "\n") {
+		if tag, ok := strings.CutPrefix(l, "## "); ok && semver.IsValid(tag) {
+			in = Newer(current, tag) || tag == r.Tag
+			if in {
+				headings = append(headings, l)
+			}
+		}
+		if in {
+			keep = append(keep, l)
+		}
+	}
+	notes := strings.Join(keep, "\n")
+	if len(headings) == 1 { // the title names it
+		notes = strings.Replace(notes, headings[0], "", 1)
+	}
 	return PlainLinks(strings.TrimSpace(notes))
 }
+
+// recentReleases is how many releases Latest reads the changelogs of.
+const recentReleases = 10
 
 // PlainLinks shows Markdown links as their text, for a terminal.
 func PlainLinks(s string) string { return mdLink.ReplaceAllString(s, "$1") }
@@ -128,18 +155,29 @@ func (c *Client) latest(ctx context.Context, repo string) (Release, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, latestTimeout)
 	defer cancel()
-	b, err := c.get(ctx, api+"/releases/latest", 1<<20)
+	// The recent releases in one request (per_page on GitHub, limit on
+	// Gitea), for their changelogs.
+	b, err := c.get(ctx, fmt.Sprintf("%s/releases?per_page=%d&limit=%[2]d", api, recentReleases), 1<<20)
 	if err != nil {
 		return Release{}, err
 	}
-	var r Release
-	if err := json.Unmarshal(b, &r); err != nil {
-		return Release{}, fmt.Errorf("reading the latest release from %s: %w", repo, err)
+	var all []Release
+	if err := json.Unmarshal(b, &all); err != nil {
+		return Release{}, fmt.Errorf("reading the releases from %s: %w", repo, err)
 	}
-	if !semver.IsValid(r.Tag) {
-		return Release{}, fmt.Errorf("latest release %q on %s isn't a version", r.Tag, repo)
+	all = slices.DeleteFunc(all, func(r Release) bool { return r.Draft || r.Prerelease || !semver.IsValid(r.Tag) })
+	if len(all) == 0 {
+		return Release{}, fmt.Errorf("no releases on %s", repo)
 	}
-	return r, nil
+	slices.SortFunc(all, func(a, b Release) int { return semver.Compare(b.Tag, a.Tag) })
+	var notes strings.Builder
+	for _, r := range all {
+		section, _, _ := strings.Cut(r.Body, "## Install")
+		fmt.Fprintf(&notes, "## %s\n\n%s\n\n", r.Tag, strings.TrimSpace(section))
+	}
+	latest := all[0]
+	latest.Body = strings.TrimSpace(notes.String())
+	return latest, nil
 }
 
 // Newer reports whether latest is newer than current. A build that isn't

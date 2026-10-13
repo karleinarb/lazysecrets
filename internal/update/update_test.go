@@ -39,8 +39,39 @@ func TestNewer(t *testing.T) {
 
 func TestNotes(t *testing.T) {
 	r := Release{Body: "### Added\n\n- Install with a one-liner (#7)\n\n## Install\n\nOn macOS…"}
-	if got := r.Notes(); got != "### Added\n\n- Install with a one-liner (#7)" {
+	if got := r.Notes("0.1.1"); got != "### Added\n\n- Install with a one-liner (#7)" {
 		t.Errorf("notes %q", got)
+	}
+}
+
+// Latest reads the recent releases, so the notes cover every version
+// since the one running.
+func TestNotesSince(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/repos/keb/lazysecrets/releases" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprint(w, `[
+			{"tag_name":"v0.4.0-rc1","body":"### Added\n\n- rc","prerelease":true},
+			{"tag_name":"v0.2.0","body":"### Added\n\n- two\n\n## Install\n\ncurl"},
+			{"tag_name":"v0.3.0","body":"### Fixed\n\n- three\n\n## Install\n\ncurl","html_url":"https://example.com/v0.3.0"},
+			{"tag_name":"v0.1.1","body":"### Added\n\n- one"},
+			{"tag_name":"v9.0.0","body":"draft","draft":true}]`)
+	}))
+	t.Cleanup(srv.Close)
+	r, err := (&Client{Servers: []string{srv.URL + "/keb/lazysecrets"}}).Latest(context.Background())
+	if err != nil || r.Tag != "v0.3.0" || r.URL != "https://example.com/v0.3.0" {
+		t.Fatalf("latest %+v %v", r, err)
+	}
+	for current, want := range map[string]string{
+		"0.1.1":       "## v0.3.0\n\n### Fixed\n\n- three\n\n## v0.2.0\n\n### Added\n\n- two",
+		"0.2.0":       "### Fixed\n\n- three",
+		"dev-2ba762c": "### Fixed\n\n- three",
+	} {
+		if got := r.Notes(current); got != want {
+			t.Errorf("notes since %s: %q, want %q", current, got, want)
+		}
 	}
 }
 
@@ -70,8 +101,8 @@ func server(t *testing.T, tamper bool) *httptest.Server {
 		sum[0] ^= 0xff
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/repos/keb/lazysecrets/releases/latest", func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, `{"tag_name":"v0.2.0","body":"### Added\n\n- x\n\n## Install\n","html_url":"https://example.com/r"}`)
+	mux.HandleFunc("/api/v1/repos/keb/lazysecrets/releases", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `[{"tag_name":"v0.2.0","body":"### Added\n\n- x\n\n## Install\n","html_url":"https://example.com/r"}]`)
 	})
 	mux.HandleFunc("/keb/lazysecrets/releases/download/v0.2.0/checksums.txt", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "%s  %s.tar.gz\n", hex.EncodeToString(sum[:]), name)
@@ -173,7 +204,7 @@ func TestInstallRefusesATamperedArchive(t *testing.T) {
 
 func TestNotesShowLinksAsText(t *testing.T) {
 	r := Release{Body: "### Added\n\n- Search ([#11](https://git.example.com/pulls/11)) ([65dc2d7](https://git.example.com/commit/65dc2d7abc))\n\n## Install\n\ncurl …"}
-	if got, want := r.Notes(), "### Added\n\n- Search (#11) (65dc2d7)"; got != want {
+	if got, want := r.Notes("0.1.1"), "### Added\n\n- Search (#11) (65dc2d7)"; got != want {
 		t.Errorf("notes %q, want %q", got, want)
 	}
 }

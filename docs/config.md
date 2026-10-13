@@ -151,7 +151,7 @@ published on GitHub and on git.kebcloud.no, and it asks them in that
 order, the next when one doesn't answer within 5 seconds;
 `updates.updateSources` lists others, such as a mirror of your own. Offline, or with
 every server down, it says nothing. A newer release shows in the footer, `v0.1.1 ↑ v0.2.0`; `U` (or
-`lazysecrets update --check`) shows its changelog.
+`lazysecrets update --check`) shows what changed since your version, across the last 10 releases.
 
 Updating (`u` there, or `lazysecrets update`) downloads the release for
 your OS and CPU from the first server that has it, checks it against

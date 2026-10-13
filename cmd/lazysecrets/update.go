@@ -55,7 +55,7 @@ func updateCmd(configPath string, args []string) error {
 		fmt.Printf("lazysecrets %s is the latest (%s)\n", current, r.Tag)
 		return nil
 	}
-	fmt.Printf("lazysecrets %s is out (you have %s):\n\n%s\n\n", r.Tag, current, indent(r.Notes()))
+	fmt.Printf("lazysecrets %s is out (you have %s):\n\n%s\n\n", r.Tag, current, indent(r.Notes(current)))
 	if check {
 		fmt.Println("lazysecrets update installs it.")
 		return nil

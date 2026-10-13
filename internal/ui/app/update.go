@@ -110,14 +110,21 @@ func (m *Model) update() tea.Cmd {
 func (m *Model) showUpdate() {
 	r := *m.newer
 	lines := []string{m.st.Muted.Render("You have " + m.versionLabel() + ".")}
-	if notes := r.Notes(); notes != "" {
+	if notes := r.Notes(m.version); notes != "" {
 		lines = append(lines, "")
 		for _, l := range strings.Split(notes, "\n") {
 			if h, ok := strings.CutPrefix(l, "### "); ok {
 				l = m.st.Label.Render(h)
+			} else if h, ok := strings.CutPrefix(l, "## "); ok { // a release, when several are new
+				l = m.st.TitleFocused.Render(h)
 			}
 			lines = append(lines, l)
 		}
+	}
+	// A popup doesn't scroll: several releases behind, the rest is on
+	// the release pages.
+	if most := max(6, m.h-12); len(lines) > most {
+		lines = append(lines[:most-1], m.st.Muted.Render("… and more on the release pages"))
 	}
 	opts := []option{{key: "u", label: "Update now", tip: "Download, check and replace this lazysecrets; restart to use it.",
 		run: func(m *Model) tea.Cmd { return m.install(r) }}}
