@@ -34,19 +34,19 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
 ## Install
 
 On macOS or Linux (arm64 or x86_64):
-
 ```sh
 curl -fsSL https://raw.githubusercontent.com/karleinarb/lazysecrets/main/install.sh | sh
-# Or
+```
+Or
+```sh
 curl -fsSL https://git.kebcloud.no/keb/lazysecrets/raw/branch/main/install.sh | sh
 ```
 
-It installs the latest release, from GitHub or else
+Both approaches will install the latest release from [GitHub](https://github.com/karleinarb/lazysecrets/releases) with fallback to
 [git.kebcloud.no](https://git.kebcloud.no/keb/lazysecrets/releases), into
 `~/.local/bin` after checking it against the release's checksums.
 `sh -s -- v0.2.0` installs a given version, `LAZYSECRETS_INSTALL_DIR`
 somewhere else.
-
 
 lazysecrets looks for a newer release once a day: the footer then shows
 `↑ v0.2.0`, and `U` shows its changelog and updates in place (or run
