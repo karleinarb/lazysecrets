@@ -92,7 +92,7 @@ use most:
   secret
 - [Config](docs/config.md): every option, themes, layered configs, the
   state file
-- [Development](docs/development.md): building, tests, pull requests and
+- [Development](docs/development.md): building, tests, how changes land and
   releasing
 
 ## Privacy

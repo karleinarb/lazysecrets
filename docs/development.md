@@ -22,7 +22,7 @@ Development builds show `dev-<commit>` as their version (`-dirty` with
 uncommitted changes); `go install …@v0.2.0` shows the tag, releases the
 version they were built for.
 
-## Pull requests
+## How changes land
 
 Pull requests into `main` are squash-merged, so each is one commit titled
 like the PR. The title is a [conventional commit](https://www.conventionalcommits.org)
