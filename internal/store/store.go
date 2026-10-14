@@ -43,6 +43,13 @@ type Node struct {
 // alone isn't.
 func (n Node) keep() bool { return len(n.StarredBy) > 0 || n.Note != "" || n.Uses > 0 }
 
+// UsedLately reports whether the item was used within the last 90 days
+// (what Recent lists). Starred and noted records are kept longer, so a
+// use alone doesn't say.
+func (n Node) UsedLately(now time.Time) bool {
+	return !n.LastUsed.IsZero() && now.Sub(n.LastUsed) <= usageMaxAge
+}
+
 // StarredFor reports whether the item is starred for account.
 func (n Node) StarredFor(account string) bool { return slices.Contains(n.StarredBy, account) }
 

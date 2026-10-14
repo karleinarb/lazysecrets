@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"slices"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
 // containerKey identifies a container in the UI and caches. The same vault
 // seen through two accounts must not share cached lists, since each
 // account may see different things.
-func containerKey(c provider.Container) string { return c.Source.Provider + "|" + c.ID }
+func containerKey(c provider.Container) string { return cachefile.ContainerKey(c) }
 
 // providerFor finds the provider instance a source came from. Sources
 // remembered from an earlier run (favourites) may name an account that

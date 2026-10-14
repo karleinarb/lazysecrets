@@ -11,6 +11,7 @@ type Set struct {
 	Repo       string
 	Encrypted  string // an encrypted file (SOPS)
 	PlainFile  string // a plain text secrets file (.env)
+	Note       string // has a note (lazysecrets list)
 }
 
 // None renders no icons.
@@ -24,6 +25,7 @@ var NerdFont = Set{
 	Repo:       "\U000F02A2", // md-git
 	Encrypted:  "\U000F033E", // md-lock
 	PlainFile:  "\U000F0214", // md-file
+	Note:       "\U000F09ED",
 }
 
 // Prefix returns the icon for kind followed by a space, or "" if the set has

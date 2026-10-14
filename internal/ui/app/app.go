@@ -131,8 +131,15 @@ type Options struct {
 	HandlerSetup *HandlerSetup
 	// NoHistory stops counting uses of items for the Recent list.
 	NoHistory bool
+	// RecentIcon marks items used lately with ◷ in the lists
+	// (ui.recentIcon).
+	RecentIcon bool
 	// Open is a reference to open at startup (lazysecrets open <ref>).
 	Open *ref.Ref
+	// OpenAction, if set, is what to do with Open, rather than asking:
+	// go to it, and maybe copy or show its value (OpenActions). It ends in
+	// the list, like Go to, rather than on the details.
+	OpenAction string
 	// Styles, if set, replaces the default theme (styles.FromTheme), and
 	// DefaultFg the terminal's default text colour.
 	Styles    *styles.Styles
@@ -206,9 +213,12 @@ type Model struct {
 	statusW     int // the status pane's width: the left column's, zoomed or not
 	changelog   []panes.Field
 	cacheDirty  bool
-	sourcesAt   map[string]time.Time
-	placeDir    string
-	savedPlace  string // the link last saved as the place
+	// cacheDropped are cache keys deleted since the last save, so saving
+	// deletes them from the file too.
+	cacheDropped map[string]bool
+	sourcesAt    map[string]time.Time
+	placeDir     string
+	savedPlace   string // the link last saved as the place
 
 	// A pending clear of a copied value, counted down in the footer.
 	// clipToken identifies the latest copy so older ticks are ignored.
@@ -283,6 +293,8 @@ type Model struct {
 	prompt     *modal               // popup that has the keyboard
 	linked     []provider.Container // vaults opened from links, this session
 	open       *ref.Ref             // reference to open at startup
+	recentIcon bool                 // mark items used lately (◷)
+	openAction string               // and what to do with it, or ask
 
 	shareKey   string      // the config's sharing.key
 	shareRules share.Rules // and sharing.keyRules
@@ -415,7 +427,8 @@ func New(providers []provider.Provider, opts Options) Model {
 	if m.store == nil {
 		m.store, _ = store.Load("")
 	}
-	m.sources = newSourcesList(iconSet, m.store)
+	m.recentIcon = opts.RecentIcon
+	m.sources = newSourcesList(iconSet, m.store, m.recentIcon)
 	m.sources.Empty = "no sources found"
 	m.collapsed = map[string]bool{}
 	m.flatSources = opts.FlatSources
@@ -447,7 +460,7 @@ func New(providers []provider.Provider, opts Options) Model {
 	}
 	m.defaultFg = opts.DefaultFg
 	m.help = newHelp(m.st)
-	m.open = opts.Open
+	m.open, m.openAction = opts.Open, opts.OpenAction
 	saved := m.store.Layout()
 	m.split, m.heights = saved.Split, saved.Heights
 
@@ -521,18 +534,26 @@ func (m Model) Init() tea.Cmd {
 		cmds = append(cmds, m.fetchLatest(false))
 	}
 	if m.open != nil {
-		r := *m.open
-		cmds = append(cmds, func() tea.Msg { return openRefMsg{r} })
+		msg := openRefMsg{ref: *m.open, action: m.openAction}
+		cmds = append(cmds, func() tea.Msg { return msg })
 	}
 	return tea.Batch(cmds...)
 }
 
-// openRefMsg starts opening a reference from outside the key handler.
-type openRefMsg struct{ ref ref.Ref }
+// openRefMsg starts opening a reference from outside the key handler:
+// asking what to do with it, or doing action (OpenActions).
+type openRefMsg struct {
+	ref    ref.Ref
+	action string
+}
+
+// OpenActions are what lazysecrets open --action takes, the Open link
+// menu's choices that go there.
+var OpenActions = map[string]linkAction{"go": actGo, "copy": actCopy, "show": actShow}
 
 // OpenLink is a message offering r in the Open link popup, for links
 // handed over by the link handler (Program.Send).
-func OpenLink(r ref.Ref) tea.Msg { return openRefMsg{r} }
+func OpenLink(r ref.Ref) tea.Msg { return openRefMsg{ref: r} }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -589,7 +610,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case openRefMsg:
 		m.deferHandlerSetup() // the link first
-		cmds = append(cmds, m.offerRef("Open link", msg.ref, false))
+		if act, ok := OpenActions[msg.action]; ok && !msg.ref.IsShare() {
+			cmds = append(cmds, m.findRef(msg.ref, act))
+		} else {
+			cmds = append(cmds, m.offerRef("Open link", msg.ref, false))
+		}
 
 	case resolvedMsg:
 		m.handleResolved(msg)
@@ -666,7 +691,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if src, ok := m.selectedSource(); ok {
 				m.logErrOf(src.Name, msg.err)
 			}
-			delete(m.cache.containers, msg.key)
+			uncache(&m, m.cache.containers, msg.key)
 			m.containers.SetError(msg.err)
 		} else {
 			m.cache.containers[msg.key] = entry[[]provider.Container]{msg.items, m.now()}
@@ -687,7 +712,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if c, ok := m.containers.Selected(); ok {
 				m.logErrOf(c.Name, msg.err)
 			}
-			delete(m.cache.objects, msg.key)
+			uncache(&m, m.cache.objects, msg.key)
 			m.secrets.SetError(msg.err)
 		} else {
 			if msg.bound != nil {

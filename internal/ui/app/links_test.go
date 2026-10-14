@@ -181,7 +181,7 @@ func TestPasteWhileFilteringFilters(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("3", "/")
-	d.send(tea.PasteMsg{Content: "api"})
+	d.send(tea.PasteMsg{Content: "api-k"})
 	if d.m.secrets.Len() != 1 || d.m.nav != nil {
 		t.Errorf("paste in filter: visible %d", d.m.secrets.Len())
 	}
@@ -203,8 +203,21 @@ func TestOpenPromptAndStartupOpen(t *testing.T) {
 		t.Fatal("open at startup didn't ask what to do")
 	}
 	d2.keys("o")
-	if _, _, s := d2.selected(); s != "api-key" {
-		t.Errorf("open at startup: selected %q", s)
+	if _, _, s := d2.selected(); s != "api-key" || d2.m.focus != paneDetail {
+		t.Errorf("open at startup: selected %q, focus %v, want the details", s, d2.m.focus)
+	}
+
+	// --action: no question, it does that.
+	d3 := newDriverOpts(t, Options{Open: &r, OpenAction: "go"})
+	if d3.m.prompt != nil {
+		t.Fatalf("--action go asked: %q", d3.m.prompt.title)
+	}
+	if _, _, s := d3.selected(); s != "api-key" || d3.m.focus != paneSecrets {
+		t.Errorf("--action go: selected %q, focus %v, want the secrets list, like Go to", s, d3.m.focus)
+	}
+	d4 := newDriverOpts(t, Options{Open: &r, OpenAction: "copy"})
+	if _, _, s := d4.selected(); s != "api-key" || d4.clip().content == "" {
+		t.Errorf("--action copy: selected %q, copied %q", s, d4.clip().content)
 	}
 }
 
@@ -303,6 +316,20 @@ func TestOpenAsksWhichAccount(t *testing.T) {
 	d.keys("j", "enter")
 	if c, _ := d.m.containers.Selected(); c.Source.Provider != "Azure:bob@example.com/t1" {
 		t.Errorf("j enter picked %q", c.Source.Provider)
+	}
+
+	// lazysecrets open --account: no question, that account.
+	r, _ := ref.Parse("lazysecrets://azure/" + kv + "/secrets/api-key")
+	r.Account = "Azure:bob@example.com/t1"
+	d.send(OpenLink(r))
+	if d.m.prompt != nil && d.m.prompt.title == "Open link" {
+		d.keys("o")
+	}
+	if strings.Contains(d.screen(), "Several accounts can see") {
+		t.Fatalf("asked, with an account given:\n%s", d.screen())
+	}
+	if c, _ := d.m.containers.Selected(); c.Source.Provider != r.Account {
+		t.Errorf("--account opened via %q", c.Source.Provider)
 	}
 
 	// Opening into a folded account unfolds it.

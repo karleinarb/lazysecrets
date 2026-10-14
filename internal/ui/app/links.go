@@ -56,9 +56,12 @@ type resolvedMsg struct {
 	act       linkAction
 	sourceRow string
 	others    []string // other accounts' rows that also found the vault
-	choices   []choice // several candidates: ask
-	linked    *provider.Container
-	err       error
+	// find ends in the list, like Go to, not on the details: opened by a
+	// tool that found it (lazysecrets open --action, from fzf).
+	find    bool
+	choices []choice // several candidates: ask
+	linked  *provider.Container
+	err     error
 }
 
 type choice struct {
@@ -217,6 +220,9 @@ func (m *Model) openSource(r ref.Ref) {
 				choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
 			}
 		}
+	}
+	if row, ok := preferredRow(r, choices); ok {
+		choices = []choice{{sourceRow: row}}
 	}
 	switch len(choices) {
 	case 0:
@@ -404,18 +410,59 @@ func (m *Model) handleResolved(msg resolvedMsg) {
 		for i := range msg.choices {
 			msg.choices[i].label = "Open in " + msg.choices[i].label
 		}
-		m.chooseSource("Scope "+msg.ref.Scope+" is in several workspaces", msg.ref, msg.act, msg.choices, true)
+		m.chooseSource("Scope "+msg.ref.Scope+" is in several workspaces", msg.ref, msg.act, msg.choices, !msg.find)
 	case len(msg.others) > 0:
 		var choices []choice
 		for _, row := range append([]string{msg.sourceRow}, msg.others...) {
 			choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
 		}
-		m.chooseSource("Several accounts can see "+msg.ref.ContainerName(), msg.ref, msg.act, choices, true)
+		if row, ok := preferredRow(msg.ref, choices); ok {
+			m.navResolved(msg, row)
+			return
+		}
+		m.chooseSource("Several accounts can see "+msg.ref.ContainerName(), msg.ref, msg.act, choices, !msg.find)
 	case msg.linked != nil:
 		m.addLinked(*msg.linked)
-		m.startLinkNav(msg.ref, msg.act, linksRowID)
+		m.navResolved(msg, linksRowID)
 	default:
-		m.startLinkNav(msg.ref, msg.act, msg.sourceRow)
+		m.navResolved(msg, msg.sourceRow)
+	}
+}
+
+// preferredRow is the choice under the account the reference asks for
+// (ref.Ref.Account), if it's one of them.
+func preferredRow(r ref.Ref, choices []choice) (string, bool) {
+	for _, c := range choices {
+		if r.Account != "" && providerOf(c.sourceRow) == r.Account {
+			return c.sourceRow, true
+		}
+	}
+	return "", false
+}
+
+// navResolved goes to what a resolved link points at, under row.
+func (m *Model) navResolved(msg resolvedMsg, row string) {
+	if msg.find {
+		m.startNav(msg.ref, msg.act, row)
+		return
+	}
+	m.startLinkNav(msg.ref, msg.act, row)
+}
+
+// findRef is openRef ending in the list, like Go to: for a link a tool
+// found (lazysecrets open --action).
+func (m *Model) findRef(r ref.Ref, act linkAction) tea.Cmd {
+	cmd := m.openRef(r, act)
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		msg := cmd()
+		if rm, ok := msg.(resolvedMsg); ok {
+			rm.find = true
+			return rm
+		}
+		return msg
 	}
 }
 

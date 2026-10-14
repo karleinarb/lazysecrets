@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 )
@@ -89,7 +90,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 					return nil
 				}, reload)
 				for _, t := range []provider.ObjectType{provider.TypeSecret, provider.TypeKey, provider.TypeCertificate} {
-					for _, o := range m.cache.objects[containerKey(c)+"|"+string(t)].value {
+					for _, o := range m.cache.objects[cachefile.ObjectsKey(c, t)].value {
 						r, err := ref.ForObject(o, "")
 						if err != nil {
 							continue
@@ -166,7 +167,7 @@ func (m *Model) coverageOf(in providerFilter) coverage {
 			}
 			for _, v := range e.value {
 				c.vaults++
-				key := containerKey(v) + "|" + string(provider.TypeSecret)
+				key := cachefile.ObjectsKey(v, provider.TypeSecret)
 				if objs, ok := m.cache.objects[key]; ok {
 					c.vaultsLoaded++
 					c.secrets += len(objs.value)
@@ -263,7 +264,7 @@ func (m *Model) queueSource(src provider.Source, force bool) {
 // queueContainer queues loading c's secrets, unless loaded lately and not
 // force.
 func (m *Model) queueContainer(c provider.Container, row string, force bool) {
-	key := containerKey(c) + "|" + string(provider.TypeSecret)
+	key := cachefile.ObjectsKey(c, provider.TypeSecret)
 	if e, ok := m.cache.objects[key]; ok && e.fresh(m.now()) && !force {
 		return
 	}
@@ -327,7 +328,7 @@ func (m *Model) handleCrawl(msg crawlMsg) tea.Cmd {
 	m.crawl.active--
 	key := msg.job.row
 	if msg.job.container != nil {
-		key = containerKey(*msg.job.container) + "|" + string(provider.TypeSecret)
+		key = cachefile.ObjectsKey(*msg.job.container, provider.TypeSecret)
 	}
 	delete(m.crawl.pending, key)
 	switch {
@@ -365,7 +366,7 @@ func (m *Model) sourceMark(row string) string {
 	}
 	loaded, loading := 0, false
 	for _, c := range e.value {
-		key := containerKey(c) + "|" + string(provider.TypeSecret)
+		key := cachefile.ObjectsKey(c, provider.TypeSecret)
 		loading = loading || m.crawl.pending[key]
 		if _, ok := m.cache.objects[key]; ok || m.crawl.failed[key] {
 			loaded++
@@ -386,7 +387,7 @@ func (m *Model) sourceMark(row string) string {
 // (✗) or are loading (◌): whether a subscription is loaded says whether
 // its vaults are searchable.
 func (m *Model) vaultMark(c provider.Container) string {
-	key := containerKey(c) + "|" + string(provider.TypeSecret)
+	key := cachefile.ObjectsKey(c, provider.TypeSecret)
 	switch {
 	case m.crawl.pending[key]:
 		return m.st.Muted.Render("◌")

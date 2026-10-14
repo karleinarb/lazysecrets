@@ -218,6 +218,19 @@ func (p *Provider) addContainer(src provider.Source, name, detail string, types 
 	return c
 }
 
+// Expire sets when the object name in vault expires, for --demo: a date
+// relative to today in the test data would change the tests' screenshots
+// from day to day.
+func (p *Provider) Expire(vault, name string, at time.Time) {
+	for _, objs := range p.objects {
+		for i := range objs {
+			if objs[i].Container.Name == vault && objs[i].Name == name {
+				objs[i].Expires = at
+			}
+		}
+	}
+}
+
 func (p *Provider) add(c provider.Container, t provider.ObjectType, o provider.Object, value string) provider.Object {
 	o.Container = c
 	o.Type = t
@@ -287,9 +300,13 @@ func Azure(delay time.Duration) *Provider {
 		Reference: secretRef("kv-app-prod", "api-key"),
 	}, "sk_live_51HxDEMO0000000000000000")
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "legacy-token", Version: "0c11de", Enabled: &no, Updated: base.AddDate(-1, 0, 0),
-		Reference: secretRef("kv-app-prod", "legacy-token"),
+		Name: "legacy-token", Version: "0c11de", Enabled: &yes, Updated: base.AddDate(-1, 0, 0),
+		Expires: base.AddDate(0, -3, 0), Reference: secretRef("kv-app-prod", "legacy-token"),
 	}, "deprecated")
+	p.add(kv, provider.TypeSecret, provider.Object{
+		Name: "smtp-password", Version: "7d2e90", Enabled: &no, Updated: base.AddDate(0, -2, 0),
+		Reference: secretRef("kv-app-prod", "smtp-password"),
+	}, "smtp-demo-password")
 
 	p.add(kv, provider.TypeKey, provider.Object{
 		Name: "signing-key", Version: "5e21b7", Enabled: &yes, Updated: base.AddDate(0, -3, 0),
@@ -349,6 +366,19 @@ func Azure(delay time.Duration) *Provider {
 	p.add(kvDev, provider.TypeSecret, provider.Object{
 		Name: "db-password", Enabled: &yes, Updated: base, Reference: secretRef("kv-app-dev", "db-password"),
 	}, "dev-password")
+	// Left behind, as dev vaults are: expired, disabled, or both.
+	p.add(kvDev, provider.TypeSecret, provider.Object{
+		Name: "stripe-webhook-secret", Enabled: &yes, Updated: base.AddDate(-1, 0, 0),
+		Expires: base.AddDate(0, -2, 0), Reference: secretRef("kv-app-dev", "stripe-webhook-secret"),
+	}, "whsec_demo_expired")
+	p.add(kvDev, provider.TypeSecret, provider.Object{
+		Name: "test-user-password", Enabled: &no, Updated: base.AddDate(0, -5, 0),
+		Reference: secretRef("kv-app-dev", "test-user-password"),
+	}, "disabled-demo-password")
+	p.add(kvDev, provider.TypeSecret, provider.Object{
+		Name: "vendor-token", Enabled: &no, Updated: base.AddDate(-2, 0, 0),
+		Expires: base.AddDate(-1, 0, 0), Reference: secretRef("kv-app-dev", "vendor-token"),
+	}, "expired-and-disabled")
 
 	return p
 }
@@ -366,7 +396,8 @@ func AzureOps(delay time.Duration) *Provider {
 	breakGlass := p.addContainer(prod, "kv-breakglass", "https://kv-breakglass.vault.azure.net", allTypes...)
 	p.add(breakGlass, provider.TypeSecret, provider.Object{
 		Name: "emergency-admin", Enabled: &yes, Updated: base.AddDate(0, -4, 0),
-		Tags: map[string]string{"owner": "ops"}, Reference: secretRef("kv-breakglass", "emergency-admin"),
+		Expires: time.Now().AddDate(0, 0, 5).Truncate(24 * time.Hour), // soon, whenever the demo runs
+		Tags:    map[string]string{"owner": "ops"}, Reference: secretRef("kv-breakglass", "emergency-admin"),
 	}, "break-glass-demo-password")
 	shared := p.addContainer(prod, "kv-shared-prod", "https://kv-shared-prod.vault.azure.net", allTypes...)
 	p.add(shared, provider.TypeSecret, provider.Object{
@@ -384,6 +415,12 @@ func AzureOps(delay time.Duration) *Provider {
 	p.add(kv, provider.TypeSecret, provider.Object{
 		Name: "pagerduty-token", Enabled: &yes, Updated: base.AddDate(0, -1, 0), Reference: secretRef("kv-ops-tools", "pagerduty-token"),
 	}, "pd-demo-token")
+	// Expiring soon whenever the demo runs: the other dates are fixed,
+	// and would have passed. Tests use the first account only.
+	p.add(kv, provider.TypeSecret, provider.Object{
+		Name: "grafana-api-key", Enabled: &yes, Updated: base.AddDate(0, -11, 0),
+		Expires: time.Now().AddDate(0, 0, 12).Truncate(24 * time.Hour), Reference: secretRef("kv-ops-tools", "grafana-api-key"),
+	}, "glsa_demo_expiring")
 
 	return p
 }

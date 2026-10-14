@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/panes"
 )
@@ -160,7 +161,7 @@ func (m Model) containerFields(c provider.Container) []panes.Field {
 	add("source", cmpOr(c.Source.ProviderLabel, string(c.Source.Kind))+" / "+c.Source.Name)
 	add("web", c.URL)
 	for _, t := range c.ObjectTypes() {
-		if e, ok := m.cache.objects[containerKey(c)+"|"+string(t)]; ok {
+		if e, ok := m.cache.objects[cachefile.ObjectsKey(c, t)]; ok {
 			add(strings.ToLower(string(t))+"s", fmt.Sprint(len(e.value)))
 		}
 	}

@@ -3,9 +3,11 @@ package app
 import (
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
@@ -18,6 +20,22 @@ import (
 // subscription shows under every account that sees it.
 
 const star = "★ "
+
+// recentMark marks items used lately (Recent), with ui.recentIcon.
+const recentMark = "◷ "
+
+// marks is what goes before a list row's name: ★ when it's starred for
+// account and, with recent, ◷ when it was used lately.
+func marks(st styles.Styles, n store.Node, account string, recent bool, now time.Time) string {
+	var s string
+	if n.StarredFor(account) {
+		s = st.Favourite.Render(star)
+	}
+	if recent && n.UsedLately(now) {
+		s += st.Muted.Render(recentMark)
+	}
+	return s
+}
 
 func sourceKey(s provider.Source) string {
 	if r, err := ref.ForSource(s); err == nil {
@@ -94,9 +112,7 @@ func (m Model) containerRender(withSource bool) func(styles.Styles, provider.Con
 			}
 			line += sty.Muted.Render("  " + c.Detail)
 		}
-		if n.StarredFor(c.Source.Provider) {
-			line = sty.Favourite.Render(star) + line
-		}
+		line = marks(sty, n, c.Source.Provider, m.recentIcon, m.now()) + line
 		if withSource {
 			src := c.Source.Name
 			if account, ok := strings.CutPrefix(c.Source.ProviderLabel, string(c.Source.Kind)+" · "); ok {
@@ -116,9 +132,7 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 		if o.Enabled != nil && !*o.Enabled {
 			line = sty.Muted.Render(o.Name + " (disabled)")
 		}
-		if n.StarredFor(o.Container.Source.Provider) {
-			line = sty.Favourite.Render(star) + line
-		}
+		line = marks(sty, n, o.Container.Source.Provider, m.recentIcon, m.now()) + line
 		switch state, left := m.expiry(o); state {
 		case expired:
 			line += " " + sty.Error.Render("✗ expired")
@@ -167,7 +181,7 @@ func (m *Model) rebind(c provider.Container) string {
 			m.linked[i].Source = c.Source
 		}
 	}
-	key := containerKey(c) + "|" + string(m.objType)
+	key := cachefile.ObjectsKey(c, m.objType)
 	if m.onLinks() {
 		m.containers.SetItems(m.linked)
 		m.containers.Select(containerKey(c))

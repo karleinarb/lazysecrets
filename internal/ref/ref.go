@@ -56,6 +56,10 @@ type Ref struct {
 	// Share is a share link's sealed files, as in the link; the other
 	// fields are empty. Package share reads it.
 	Share string
+	// Account, when set, is the provider (its ID) to open or read it
+	// with when several could, from lazysecrets list. It isn't part of
+	// the link.
+	Account string
 }
 
 // IsShare reports whether r is a share link.

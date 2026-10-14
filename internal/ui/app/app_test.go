@@ -536,7 +536,7 @@ func TestBackspaceGoesBack(t *testing.T) {
 	}
 	// While typing a filter, backspace deletes a character instead.
 	d.keys("/")
-	d.typeText("apx")
+	d.typeText("api-x")
 	d.send(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if !d.m.secrets.Filtering() || d.m.secrets.Len() != 1 {
 		t.Errorf("backspace in filter: filtering=%v visible=%d", d.m.secrets.Filtering(), d.m.secrets.Len())
@@ -666,7 +666,7 @@ func TestFilter(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("3", "/")
-	d.typeText("api")
+	d.typeText("api-k")
 	if d.m.secrets.Len() != 1 {
 		t.Fatalf("visible = %d, want 1", d.m.secrets.Len())
 	}
@@ -684,9 +684,9 @@ func TestFilter(t *testing.T) {
 	}
 	d.keys("esc") // leave filter mode, clearing the query
 	d.keys("/")
-	d.typeText("api")
+	d.typeText("api-k")
 	d.keys("enter", "esc") // apply, then esc clears the applied filter
-	if d.m.secrets.Len() != 3 {
+	if d.m.secrets.Len() != 4 {
 		t.Errorf("esc should clear the applied filter, visible = %d", d.m.secrets.Len())
 	}
 	if _, _, s := d.selected(); s != "api-key" {
@@ -698,13 +698,13 @@ func TestMoveWhileFiltering(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("3", "/")
-	d.typeText("a") // all three secrets contain an a
-	if d.m.secrets.Len() != 3 {
+	d.typeText("a") // all four secrets contain an a
+	if d.m.secrets.Len() != 4 {
 		t.Fatalf("visible = %d", d.m.secrets.Len())
 	}
 	_, _, initial := d.selected() // kept from before filtering: the middle row
 	var seen []string
-	for _, k := range []rune{'j', 'j', 'k'} {
+	for _, k := range []rune{'j', 'j', 'j', 'k'} {
 		d.send(tea.KeyPressMsg{Code: k, Mod: tea.ModCtrl})
 		_, _, s := d.selected()
 		seen = append(seen, s)
@@ -712,9 +712,9 @@ func TestMoveWhileFiltering(t *testing.T) {
 	if !d.m.secrets.Filtering() {
 		t.Fatal("ctrl+j/k left filter mode")
 	}
-	// down to the bottom, stay there, back up to where it started
-	if seen[0] == initial || seen[1] != seen[0] || seen[2] != initial {
-		t.Errorf("from %q, ctrl+j, ctrl+j, ctrl+k selected %v", initial, seen)
+	// down to the bottom, stay there, back up one
+	if seen[0] == initial || seen[2] != seen[1] || seen[3] != seen[0] {
+		t.Errorf("from %q, ctrl+j ×3, ctrl+k selected %v", initial, seen)
 	}
 	if !strings.Contains(d.screen(), "ctrl+j/n down") {
 		t.Errorf("filter help missing ctrl+j:\n%s", d.screen())
@@ -848,7 +848,7 @@ func TestCopyAndRevealWhileFiltering(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("3", "/")
-	d.typeText("api")
+	d.typeText("api-k")
 	d.send(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
 	if d.clip().content != "sk_live_51HxDEMO0000000000000000" {
 		t.Errorf("ctrl+y copied %q", d.clip().content)
@@ -1187,7 +1187,8 @@ func TestDetailsFollowFocus(t *testing.T) {
 func TestStatusLineCountsRepos(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t, fake.Azure(0), fake.Repos())
-	if line := strings.Split(d.screen(), "\n")[1]; !strings.Contains(line, "1 account · 3 repos") {
+	// The status line, not the pane, which an expired secret's ⚠ fills.
+	if line := ansi.Strip(d.m.statusLine()); !strings.Contains(line, "1 account · 3 repos") {
 		t.Errorf("status line: %q", line)
 	}
 	d = newDriver(t, fake.Azure(0))
@@ -1202,8 +1203,8 @@ func TestStatusPane(t *testing.T) {
 	d := newDriverOpts(t, Options{Version: "0.1.0", ConfigFiles: []string{"/cfg/config.yaml"}, StatePath: "/state/state.json",
 		OpenURL: func(u string) error { opened = append(opened, u); return nil }},
 		fake.Azure(0), signedOut{fake.Azure(0)})
-	if !strings.Contains(d.screen(), "2 accounts · 1 need sign-in") {
-		t.Errorf("status line:\n%s", d.screen())
+	if line := ansi.Strip(d.m.statusLine()); !strings.Contains(line, "2 accounts · 1 need sign-in") {
+		t.Errorf("status line: %q", line)
 	}
 	d.keys("0")
 	if d.m.focus != paneStatus {
@@ -1303,7 +1304,8 @@ func TestExpiringInStatus(t *testing.T) {
 	t.Parallel()
 	d := newDriverOpts(t, Options{ExpiryWarning: 30 * 24 * time.Hour}, fake.Azure(0))
 	d.keys("3", "]", "]") // load kv-app-prod's certificates
-	if !strings.Contains(d.screen(), "⚠ 1 expiring") {
+	// old-tls and legacy-token.
+	if !strings.Contains(d.screen(), "⚠ 2 expiring") {
 		t.Errorf("status line:\n%s", d.screen())
 	}
 	d.keys("0")

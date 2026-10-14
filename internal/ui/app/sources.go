@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/icons"
@@ -39,7 +41,7 @@ type sourceRow struct {
 
 // sourceRowKey joins a provider ID and a source ID. "|" doesn't occur in
 // either; provider IDs contain "/" (Azure:user/tenant).
-func sourceRowKey(providerID, sourceID string) string { return providerID + "|" + sourceID }
+func sourceRowKey(providerID, sourceID string) string { return cachefile.Row(providerID, sourceID) }
 
 func splitSourceRow(row string) (providerID, sourceID string) {
 	providerID, sourceID, _ = strings.Cut(row, "|")
@@ -56,7 +58,7 @@ func sourceRowID(r sourceRow) string {
 	return sourceRowKey(r.provider, r.source.ID)
 }
 
-func newSourcesList(iconSet icons.Set, mem *store.Store) panes.List[sourceRow] {
+func newSourcesList(iconSet icons.Set, mem *store.Store, recent bool) panes.List[sourceRow] {
 	return panes.NewList("[1] Sources", panes.Item[sourceRow]{
 		ID: sourceRowID,
 		// Headers have no filter text, so filtering shows just sources.
@@ -78,8 +80,8 @@ func newSourcesList(iconSet icons.Set, mem *store.Store) panes.List[sourceRow] {
 			node := mem.Node(sourceKey(r.source))
 			kind := st.Kind(r.group)
 			starred := ""
-			if r.kind == rowSource && node.StarredFor(r.source.Provider) {
-				starred = st.Favourite.Render(star)
+			if r.kind == rowSource {
+				starred = marks(st, node, r.source.Provider, recent, time.Now())
 			}
 			switch {
 			case r.kind == rowLinks:

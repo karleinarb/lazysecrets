@@ -67,8 +67,21 @@ func (m *Model) refreshShown(before []provider.Object) tea.Cmd {
 		return nil
 	}
 	m.detail.Refresh(s)
-	delete(m.cache.details, detailKey(s))
+	uncache(m, m.cache.details, detailKey(s))
 	return m.describe(s)
+}
+
+// uncache deletes key from a cache, and, at the next save, from the file.
+func uncache[T any](m *Model, c map[string]entry[T], key string) {
+	if _, ok := c[key]; !ok {
+		return
+	}
+	delete(c, key)
+	if m.cacheDropped == nil {
+		m.cacheDropped = map[string]bool{}
+	}
+	m.cacheDropped[key] = true
+	m.cacheDirty = true
 }
 
 // sameListing reports whether a and b list the same: what a list

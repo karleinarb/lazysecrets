@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/panes"
@@ -28,7 +29,7 @@ func (m Model) expiringItems() []expiringItem {
 			row := sourceRowKey(p.ID(), src.ID)
 			for _, c := range m.cache.containers[row].value {
 				for _, t := range c.ObjectTypes() {
-					for _, o := range m.cache.objects[containerKey(c)+"|"+string(t)].value {
+					for _, o := range m.cache.objects[cachefile.ObjectsKey(c, t)].value {
 						if state, _ := m.expiry(o); state != notExpiring {
 							out = append(out, expiringItem{o, row})
 						}

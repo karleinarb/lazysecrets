@@ -119,3 +119,15 @@ func TestStarsPerAccount(t *testing.T) {
 		t.Errorf("unstar alice: %v", n.StarredBy)
 	}
 }
+
+func TestUsedLately(t *testing.T) {
+	now := time.Now()
+	for ago, want := range map[time.Duration]bool{time.Hour: true, 89 * 24 * time.Hour: true, 2 * 365 * 24 * time.Hour: false} {
+		if got := (Node{LastUsed: now.Add(-ago)}).UsedLately(now); got != want {
+			t.Errorf("used %v ago: %v", ago, got)
+		}
+	}
+	if (Node{}).UsedLately(now) {
+		t.Error("never used is lately")
+	}
+}

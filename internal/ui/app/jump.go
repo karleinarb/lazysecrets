@@ -107,7 +107,7 @@ func (m *Model) storeEntries() (favs, recent []option) {
 	if m.history {
 		var used []string
 		for _, k := range keys {
-			if !nodes[k].LastUsed.IsZero() {
+			if nodes[k].UsedLately(m.now()) {
 				used = append(used, k)
 			}
 		}

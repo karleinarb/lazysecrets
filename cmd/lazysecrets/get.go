@@ -37,10 +37,15 @@ func value(ctx context.Context, providers []provider.Provider, st *store.Store, 
 	return v, err
 }
 
-// readKey is value, also returning the version read.
+// readKey is value, also returning the version read. The account asked
+// for (--account) goes first, else the one that last read it.
 func readKey(ctx context.Context, providers []provider.Provider, st *store.Store, r ref.Ref) (provider.SecretValue, string, error) {
 	key := r
 	key.Version = ""
 	node := st.Node(key.String())
-	return ref.Read(ctx, providers, r, node.Account, node.Source)
+	account, source := node.Account, node.Source
+	if r.Account != "" && r.Account != account {
+		account, source = r.Account, ""
+	}
+	return ref.Read(ctx, providers, r, account, source)
 }

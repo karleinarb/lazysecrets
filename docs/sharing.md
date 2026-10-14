@@ -1,7 +1,7 @@
-# Links
+# Sharing
 
-Subscriptions, workspaces, vaults, scopes, repos, files and secrets can
-be shared as a `lazysecrets://` link, in chat or a ticket. Whoever opens
+Subscriptions, workspaces, vaults, scopes, repos, files and secrets are
+shared as a `lazysecrets://` link, in chat or a ticket. Whoever opens
 it lands on that item, reading it with their own account and
 permissions: the link names the item, never its value. Env files can
 also be [shared encrypted](#sharing-env-files), in the link itself.
@@ -15,7 +15,7 @@ lazysecrets://databricks/adb-1111111111111111.11.azuredatabricks.net/app/storage
 lazysecrets://repo/git.example.com%2Fteam%2Finfra/secrets%2Fapp.yaml/db.password
 ```
 
-## Sharing
+## Sharing a link
 
 `s` copies a link to the selected item (from the versions view, pinned to
 that version). `S` opens the share menu:
@@ -99,7 +99,7 @@ the value breaks every old link. Whoever has read the secret's value
 before can decrypt links made with it without asking the vault, so rotate
 it now and then: new links use the newest version.
 
-## Opening
+## Opening a link
 
 - Paste it into lazysecrets, or press `ctrl+o`, which reads the clipboard
   and fills in any reference it finds there. Key Vault URLs,
@@ -121,20 +121,10 @@ account) and jumps to it, asking which account to use when several can see
 it, ending on a secret's details as `enter` on it would. Links say what,
 not what to do: opening a link to a secret asks whether to just go to it,
 also copy or show its value, or (`y`) copy its value without going there.
-
-## In scripts
-
-`lazysecrets get <link>` prints the value, for scripts and pipes:
-
-```sh
-export DB_PASSWORD=$(lazysecrets get lazysecrets://azure/kv-app-prod.vault.azure.net/secrets/db-password)
-lazysecrets get lazysecrets://azure/kv-app-prod.vault.azure.net/secrets/db-password | kubectl create secret generic db --from-file=password=/dev/stdin
-```
-
-It reads the value directly, with your az accounts (the one that last read
-it first), the Databricks profile for the workspace, or sops in your clone
-of the repo; a version in the link reads that version. The value ends with
-a newline only on a terminal.
+`lazysecrets open --action go|copy|show <link>` does one without asking
+and ends in the list, like Go to,
+and `--account <account>` picks the account (as [`list`](integration.md#listing-for-fzf-and-pickers)
+prints it) when several can see it.
 
 ## From the browser and chat
 

@@ -89,6 +89,32 @@ func cmpOr(a, b string) string {
 	return b
 }
 
+// refArg parses get's and open's arguments: a reference, and optionally
+// the account to use when several could (lazysecrets list's column) and,
+// for open, what to do with it rather than asking (--action).
+func refArg(cmd string, args []string) (r ref.Ref, action string, err error) {
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	account := fs.String("account", "", "the account to use when several could, as lazysecrets list prints it")
+	usage := "usage: lazysecrets get [--account <account>] <ref>"
+	act := new(string)
+	if cmd == "open" {
+		act = fs.String("action", "", "do this rather than ask: go (to it), copy (go, and copy its value) or show (go, and show it)")
+		usage = "usage: lazysecrets open [--account <account>] [--action go|copy|show] <ref>"
+	}
+	if err := fs.Parse(args); err != nil {
+		return r, "", err
+	}
+	if fs.NArg() != 1 {
+		return r, "", errors.New(usage)
+	}
+	if _, ok := app.OpenActions[*act]; *act != "" && !ok {
+		return r, "", fmt.Errorf("--action: %q is not go, copy or show", *act)
+	}
+	r, err = ref.Parse(fs.Arg(0))
+	r.Account = *account
+	return r, *act, err
+}
+
 // defaultConfigPath is $LAZYSECRETS_CONFIG_FILE, else config.yaml in the
 // config directory.
 func defaultConfigPath() string {
@@ -115,12 +141,18 @@ func run() error {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage:
   lazysecrets [flags]             browse secrets
-  lazysecrets [flags] [open] <ref>
+  lazysecrets [flags] [open [--account <account>] [--action go|copy|show]] <ref>
                                   open a lazysecrets:// link (also a share link),
                                   Key Vault URL, @Microsoft.KeyVault(...) or
                                   {{secrets/scope/key}}
-  lazysecrets [flags] get <ref>   print the value a lazysecrets:// link points at,
+  lazysecrets [flags] get [--account <account>] <ref>
+                                  print the value a lazysecrets:// link points at,
                                   for scripts: VAR=$(lazysecrets get <ref>)
+  lazysecrets [flags] list [--kind secret,…] [--cached] [--max-age 2m] [--format text|json]
+                          [--color always|never] [--icons=false] [--errors=false]
+                                  print every source, vault and secret it can
+                                  find, one per line, for fzf and pickers:
+                                  what's cached at once, then what loads
   lazysecrets [flags] share [--key <secret>] <env file>...
                                   print a link to env files of a repo, encrypted
                                   with a secret's value (default: sharing.key)
@@ -146,7 +178,8 @@ Flags:
 	}
 
 	var open, getRef *ref.Ref
-	var shareArgs []string
+	var openAction string
+	var shareArgs, listArgs []string
 	printKeys := false
 	switch args := flag.Args(); {
 	case len(args) > 0 && args[0] == "share":
@@ -154,10 +187,12 @@ Flags:
 		if len(shareArgs) == 0 {
 			shareArgs = []string{} // still sharing: says how
 		}
+	case len(args) > 0 && args[0] == "list":
+		listArgs = append([]string{}, args[1:]...) // not nil: listing
 	case len(args) == 1 && args[0] == "keybindings":
 		printKeys = true
-	case len(args) == 2 && args[0] == "get":
-		r, err := ref.Parse(args[1])
+	case len(args) > 0 && args[0] == "get":
+		r, _, err := refArg("get", args[1:])
 		if err != nil {
 			return err
 		}
@@ -169,12 +204,12 @@ Flags:
 	case len(args) > 0 && args[0] == "update":
 		return updateCmd(*configPath, args[1:])
 	case len(args) == 0:
-	case args[0] == "open" && len(args) == 2:
-		r, err := ref.Parse(args[1])
+	case args[0] == "open" && len(args) >= 2:
+		r, act, err := refArg("open", args[1:])
 		if err != nil {
 			return err
 		}
-		open = &r
+		open, openAction = &r, act
 	case len(args) == 1 && looksLikeRef(args[0]):
 		// lazysecrets <link>, like lazysecrets open <link>
 		r, err := ref.Parse(args[0])
@@ -263,6 +298,8 @@ Flags:
 		}
 	}
 
+	recentIcon := cfg.UI.RecentIcon != nil && *cfg.UI.RecentIcon
+
 	// Stars, notes and the layout. Demo mode keeps them in memory, so
 	// sample vaults never end up in the real file.
 	stateDir, err := config.StateDir()
@@ -283,9 +320,14 @@ Flags:
 	var providers []provider.Provider
 	if *demo {
 		// Two Azure accounts, like a personal and an admin login in az.
+		alice, admin := "Azure:alice@example.com/demo", "Azure:admin.alice@example.com/demo"
+		fake.Seed(st, alice, admin)
+		az := fake.Azure(400*time.Millisecond).As(alice, "Azure · alice")
+		// Due soon whenever the demo runs (the tests' dates are fixed).
+		az.Expire("kv-app-prod", "api-key", time.Now().AddDate(0, 0, 9).Truncate(24*time.Hour))
 		providers = []provider.Provider{
-			fake.Azure(400*time.Millisecond).As("Azure:alice@example.com/demo", "Azure · alice"),
-			fake.AzureOps(700*time.Millisecond).As("Azure:admin.alice@example.com/demo", "Azure · admin.alice"),
+			az,
+			fake.AzureOps(700*time.Millisecond).As(admin, "Azure · admin.alice"),
 			fake.Databricks(600 * time.Millisecond),
 			fake.Repos(),
 		}
@@ -344,6 +386,13 @@ Flags:
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(getRef.Kind))
 		defer cancel()
 		return get(ctx, providers, st, *getRef)
+	}
+	if listArgs != nil {
+		cachePath := ""
+		if d, err := config.CacheDir(); err == nil && !*demo && config.On(cfg.Storage.Cache) {
+			cachePath = filepath.Join(d, "cache.json")
+		}
+		return listCmd(providers, st, cachePath, timeoutFor, theme, *icons, recentIcon, time.Duration(expiryDays)*24*time.Hour, listArgs, os.Stdout)
 	}
 	if shareArgs != nil {
 		// The files from a repo, the key from whichever provider it's
@@ -433,6 +482,8 @@ Flags:
 		ShareKey:       cfg.Sharing.Key,
 		ShareRules:     shareRules(cfg),
 		Open:           open,
+		OpenAction:     openAction,
+		RecentIcon:     recentIcon,
 		Styles:         &theme,
 		DefaultFg:      defaultFg,
 	})

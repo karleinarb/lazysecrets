@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -394,7 +395,7 @@ func TestStarWhileFiltering(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("3", "/")
-	for _, r := range "api" {
+	for _, r := range "api-k" {
 		d.send(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 	d.send(tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
@@ -432,5 +433,22 @@ func TestStarIsPerAccount(t *testing.T) {
 	}
 	if len(labels) != 1 || !strings.Contains(labels[0], "platform-prod · alice") {
 		t.Errorf("favourites should list alice's star only: %q", labels)
+	}
+}
+
+func TestRecentIcon(t *testing.T) {
+	t.Parallel()
+	mem, _ := store.Load("")
+	_ = mem.Use("lazysecrets://azure/"+kv+"/secrets/api-key", time.Now(), func(*store.Node) {})
+	d := newDriverOpts(t, Options{Store: mem, RecentIcon: true})
+	d.keys("3")
+	scr := d.screen()
+	if !strings.Contains(scr, "◷ api-key") || strings.Contains(scr, "◷ db-password") {
+		t.Errorf("want ◷ on api-key only:\n%s", scr)
+	}
+	off := newDriverOpts(t, Options{Store: mem})
+	off.keys("3")
+	if strings.Contains(off.screen(), "◷") {
+		t.Errorf("◷ without ui.recentIcon:\n%s", off.screen())
 	}
 }

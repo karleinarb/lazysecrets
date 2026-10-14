@@ -1,12 +1,14 @@
 package app
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider/fake"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
@@ -80,15 +82,16 @@ func TestCacheFileDropsOldAndSignedOut(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "cache.json")
 	az := fake.Azure(0)
 	now := time.Now()
-	f := cacheFile{
-		Version: cacheFileVersion,
-		Containers: map[string]stamped[[]provider.Container]{
-			az.ID() + "|recent":     {now.Add(-time.Hour), []provider.Container{{Name: "kv-recent"}}},
-			az.ID() + "|old":        {now.Add(-cacheMaxAge - time.Hour), []provider.Container{{Name: "kv-old"}}},
-			"Azure:gone@x/t|recent": {now, []provider.Container{{Name: "kv-gone"}}},
+	f := cachefile.File{
+		Version: cachefile.Version,
+		Containers: map[string]cachefile.Stamped[[]provider.Container]{
+			az.ID() + "|recent":     {At: now.Add(-time.Hour), Value: []provider.Container{{Name: "kv-recent"}}},
+			az.ID() + "|old":        {At: now.Add(-cachefile.MaxAge - time.Hour), Value: []provider.Container{{Name: "kv-old"}}},
+			"Azure:gone@x/t|recent": {At: now, Value: []provider.Container{{Name: "kv-gone"}}},
 		},
 	}
-	if err := writeCacheFile(file, f); err != nil {
+	b, _ := json.Marshal(f) // as an older lazysecrets left it
+	if err := os.WriteFile(file, b, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	d := newDriverOpts(t, Options{CacheFile: file}, az)
@@ -97,7 +100,7 @@ func TestCacheFileDropsOldAndSignedOut(t *testing.T) {
 		t.Error("dropped a recent entry")
 	}
 	if _, ok := c[az.ID()+"|old"]; ok {
-		t.Error("kept an entry older than cacheMaxAge")
+		t.Error("kept an entry older than cachefile.MaxAge")
 	}
 	if _, ok := c["Azure:gone@x/t|recent"]; ok {
 		t.Error("kept an entry of an account that isn't signed in")

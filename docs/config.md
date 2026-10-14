@@ -9,10 +9,11 @@ it isn't there yet); changes apply when lazysecrets starts again.
 ```yaml
 ui:
   icons: true            # Nerd Font icons (v3+); also --icons=false or LAZYSECRETS_ICONS=0
+  recentIcon: false      # mark items used lately (Recent, R) with ◷, here and in lazysecrets list
   sourcesView: grouped   # or flat; ` toggles it
   collapseGroups: true   # start with the Sources pane's groups folded; enter or space unfolds one
   loadDelay: 150ms       # how long the cursor rests on a row before it loads; 0s loads at once
-  expiryWarningDays: 30  # mark secrets, keys and certificates expiring this soon (⚠ 12d); expired ones get ✗
+  expiryWarningDays: 30  # mark secrets, keys and certificates expiring this soon (⚠ 12d; ⚠ in lazysecrets list); expired ones get ✗
 values:
   revealTimeout: 60s     # hide a revealed value after this long; 0s keeps it shown
   hideOnBlur: true       # hide a revealed value when the terminal loses focus (tmux: focus-events on)
@@ -53,8 +54,8 @@ sharing:               # sharing env files as encrypted links
 ```
 
 More, each on its own page: [repos](repos.md) (`providers.repos`),
-[sharing env files](links.md#sharing-env-files) (`sharing`), the
-[link handler](links.md#from-the-browser-and-chat) (`linkHandler`),
+[sharing env files](sharing.md#sharing-env-files) (`sharing`), the
+[link handler](sharing.md#from-the-browser-and-chat) (`linkHandler`),
 [keybindings](keys.md#rebinding-keys) (`keybinding`) and
 [custom commands](custom-commands.md) (`customCommands`).
 
@@ -140,7 +141,8 @@ you: the Sources lists, vaults and scopes, and secrets' names and metadata
 once, and anything older than two minutes reloads in the background when
 you go to it, or when Go to searches it. While it does, the pane's
 bottom border says how old what it shows is (`cached 3h ago`). Revealing
-and copying always fetch the value live.
+and copying always fetch the value live. [`lazysecrets list`](integration.md#listing-for-fzf-and-pickers)
+reads it and adds to it too.
 
 Lists not loaded for 30 days are dropped, and so is everything from an
 account you're no longer signed in to. Repos aren't cached: their files

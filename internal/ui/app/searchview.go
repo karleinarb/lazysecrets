@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/match"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
@@ -617,7 +618,7 @@ func (m Model) loadHint() string {
 	}
 	loaded := 0
 	for _, c := range e.value {
-		key := containerKey(c) + "|" + string(provider.TypeSecret)
+		key := cachefile.ObjectsKey(c, provider.TypeSecret)
 		if _, ok := m.cache.objects[key]; ok || m.crawl.failed[key] {
 			loaded++
 		}

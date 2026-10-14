@@ -44,6 +44,9 @@ type Config struct {
 
 type UI struct {
 	Icons *bool `yaml:"icons"`
+	// RecentIcon marks items used lately (Recent, R) with ◷, in the lists
+	// and in lazysecrets list. Defaults to false.
+	RecentIcon *bool `yaml:"recentIcon"`
 	// SourcesView is "grouped" (default) or "flat"; ` + "`" + ` toggles it.
 	SourcesView string `yaml:"sourcesView"`
 	// CollapseGroups starts the Sources pane with its groups folded;

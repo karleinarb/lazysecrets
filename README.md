@@ -12,10 +12,7 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
   CLI, `sops`, `git`). No config file needed.
 - **Search everything**: `ctrl+s` searches every source at once, with
   fzf-style matching.
-- **Share links**: Share `lazysecrets://` links with colleagues. A colleague opens it
-  with their own access, from the terminal or with a click in the browser
-  or chat. `.env` files can be shared too, as a link encrypted with a
-  secret your team can read.
+- **Share links**: Share `lazysecrets://` links with colleagues.
 - **Neovim integration**: via [lazysecrets.nvim](https://github.com/karleinarb/lazysecrets.nvim)
 - **Careful with values**: values stay hidden until you reveal them, and
   copied values are cleared from the clipboard after 30 seconds.
@@ -80,14 +77,32 @@ use most:
 | `?` | every key, searchable |
 | `q` | quit |
 
+
+## Integration
+Lazysecret let you integrate it into your workflows by `lazysecrets` `list`/`get`/`open`
+
+Here is an example of implementing a picker in `fzf`:
+```sh
+lazysecrets list | fzf --ansi --delimiter='\t' --with-nth='2..-3' --nth='2..' --accept-nth=-1 \
+  --header 'enter: link · ctrl-o: open · ctrl-y: copy value · ctrl-x: copy and close' \
+  --bind 'ctrl-o:become(lazysecrets open --action go --account {-2} {-1})' \
+  --bind 'ctrl-y:execute-silent(lazysecrets get --account {-2} {-1} | pbcopy)+change-header(Copied the value of {3})' \
+  --bind 'ctrl-x:become(lazysecrets get --account {-2} {-1} | pbcopy)'
+```
+
+![fzf-example](docs/assets/fzf-example.png)
+
+More defails in the [Integration](docs/integration.md) docs
+
 ## Docs
 
 - [Keys](docs/keys.md): every key, Go to, the layout, and rebinding keys
 - [Azure Key Vault](docs/azure.md): accounts, permissions, pinned vaults
 - [Databricks](docs/databricks.md): profiles and Key Vault-backed scopes
 - [SOPS and .env files](docs/repos.md): which repos and files, decrypting
-- [Links](docs/links.md): sharing, opening, `lazysecrets get` in scripts,
-  and opening links from the browser and chat
+- [Sharing](docs/sharing.md): links to secrets, encrypted env files, and
+  opening links, also from the browser and chat
+- [Integration](docs/integration.md): how lazysecrets can integrate into other systems
 - [Custom commands](docs/custom-commands.md): run your own commands on a
   secret
 - [Config](docs/config.md): every option, themes, layered configs, the
