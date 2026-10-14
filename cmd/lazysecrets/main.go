@@ -436,6 +436,7 @@ Flags:
 		Styles:         &theme,
 		DefaultFg:      defaultFg,
 	})
+	blockingStdin()
 	p = tea.NewProgram(m)
 	final, err := p.Run()
 	if fm, ok := final.(app.Model); ok {
