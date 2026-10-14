@@ -180,6 +180,24 @@ func (d Detail) View(st styles.Styles, focused bool, spin string) string {
 
 const spinnerPlaceholder = "\x00spin\x00"
 
+// carryStyle starts each wrapped line with the styles still on at the end
+// of the line before: a styled value wrapped in the middle (a long ref)
+// would go on unstyled, as each line is drawn on its own.
+func carryStyle(lines []string) []string {
+	var on string
+	for i, line := range lines {
+		lines[i] = on + line
+		for _, code := range sgr.FindAllString(line, -1) {
+			if code == "\x1b[m" || code == "\x1b[0m" {
+				on = ""
+			} else {
+				on += code
+			}
+		}
+	}
+	return lines
+}
+
 // lines renders the body, wrapped to the pane width.
 func (d Detail) lines(st styles.Styles) []string {
 	inner := max(1, d.w-3)
@@ -187,7 +205,7 @@ func (d Detail) lines(st styles.Styles) []string {
 	field := func(label, value string) {
 		prefix := " " + st.Label.Render(fmt.Sprintf("%-10s", label)) + " "
 		indent := strings.Repeat(" ", 12)
-		wrapped := strings.Split(ansi.Hardwrap(value, max(1, inner-11), true), "\n")
+		wrapped := carryStyle(strings.Split(ansi.Hardwrap(value, max(1, inner-11), true), "\n"))
 		out = append(out, prefix+wrapped[0])
 		for _, w := range wrapped[1:] {
 			out = append(out, indent+w)
