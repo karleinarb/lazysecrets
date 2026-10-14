@@ -2,6 +2,18 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.2.0 – 2026-10-14
+
+### Added
+
+- Lazysecrets list prints everything lazysecrets can find, for fzf and editor pickers ([#70](https://git.kebcloud.no/keb/lazysecrets/pulls/70)) ([39454d4](https://git.kebcloud.no/keb/lazysecrets/commit/39454d47a864c8628c50b023aee9539d33be2f44))
+
+### Fixed
+
+- Lazysecrets starts from fzf's become, on a non-blocking terminal ([#67](https://git.kebcloud.no/keb/lazysecrets/pulls/67)) ([4480e8f](https://git.kebcloud.no/keb/lazysecrets/commit/4480e8fed00024691091eb7096abb9dc83b8044d))
+- Local builds are dev-<commit> again, not a Go pseudo-version ([#68](https://git.kebcloud.no/keb/lazysecrets/pulls/68)) ([e825a51](https://git.kebcloud.no/keb/lazysecrets/commit/e825a51b30261b55c536af18fefde79dc6308377))
+- A wrapped value in the details keeps its colour on every line ([#69](https://git.kebcloud.no/keb/lazysecrets/pulls/69)) ([dbb0eb2](https://git.kebcloud.no/keb/lazysecrets/commit/dbb0eb2bbdf6d695cf0d9ac15a1b513af8ba431d))
+
 ## v0.1.2 – 2026-10-13
 
 ### Added
