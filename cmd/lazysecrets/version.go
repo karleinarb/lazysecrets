@@ -1,6 +1,10 @@
 package main
 
-import "runtime/debug"
+import (
+	"regexp"
+	"runtime/debug"
+	"strings"
+)
 
 // version is set by release builds:
 //
@@ -8,7 +12,12 @@ import "runtime/debug"
 var version string
 
 // versionString is the release version, or for other builds what Go
-// recorded: the module version (go install …@v1.2.3), else the commit.
+// recorded: the module version (go install …@v1.2.3), else the commit
+// (dev-c1a4f90, -dirty with changes not committed).
+// pseudo matches a Go pseudo-version (v0.1.3-0.20261014174204-1c31a75d0507,
+// maybe +dirty): its commit.
+var pseudo = regexp.MustCompile(`[-.]\d{14}-([0-9a-f]{12})(\+.*)?$`)
+
 func versionString() string {
 	if version != "" {
 		return version
@@ -18,6 +27,15 @@ func versionString() string {
 		return "dev"
 	}
 	if v := bi.Main.Version; v != "" && v != "(devel)" {
+		// A commit, not a release: a local build (Go stamps those too) or
+		// go install …@<commit>.
+		if m := pseudo.FindStringSubmatch(v); m != nil {
+			dirty := ""
+			if strings.HasSuffix(v, "+dirty") {
+				dirty = "-dirty"
+			}
+			return "dev-" + m[1][:7] + dirty
+		}
 		return v
 	}
 	var rev, dirty string
