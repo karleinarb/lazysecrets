@@ -143,9 +143,10 @@ turns the question off too.
 link then opens a new window of the terminal you ran it in, with
 lazysecrets on that link. It recognises kitty, Ghostty, WezTerm, iTerm2,
 Terminal.app, Alacritty, GNOME Terminal, Konsole and foot, also inside
-tmux; `--terminal NAME` picks another. It records your `PATH` and config
-locations, since apps start without your shell's environment (and so
-without `az`): run it again after moving lazysecrets or changing those.
+tmux; `--terminal NAME` picks another. It records your `PATH`, config
+locations and XDG directories, since apps start without your shell's
+environment (and so without `az`): run it again after moving lazysecrets
+or changing those.
 
 - macOS: a small background app, `~/Applications/Lazysecrets Links.app`
 - Linux: a desktop entry claiming `x-scheme-handler/lazysecrets`, set as

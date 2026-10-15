@@ -166,9 +166,11 @@ func Executable() (string, error) {
 
 // passEnv lists the variables carried from the install's environment to
 // lazysecrets in the new window: apps start with a minimal environment,
-// without Homebrew's PATH (so no az) or the user's config locations.
+// without Homebrew's PATH (so no az) or the user's XDG directories, so
+// the window would use another cache and miss running instances' sockets.
 var passEnv = []string{
-	"PATH", "LAZYSECRETS_CONFIG_FILE", "LAZYSECRETS_ICONS", "XDG_CONFIG_HOME", "XDG_STATE_HOME",
+	"PATH", "LAZYSECRETS_CONFIG_FILE", "LAZYSECRETS_ICONS",
+	"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "XDG_DATA_HOME",
 	"AZURE_CONFIG_DIR", "DATABRICKS_CONFIG_FILE",
 }
 
