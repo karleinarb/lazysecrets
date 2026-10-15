@@ -2,6 +2,22 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.3.0 – 2026-10-15
+
+### Added
+
+- Spring Boot config files in repos ([#79](https://git.kebcloud.no/keb/lazysecrets/pulls/79)) ([96395cb](https://git.kebcloud.no/keb/lazysecrets/commit/96395cb6a27a94293e35401790296a894821d075))
+- Decrypt Jasypt values in .env and Spring files ([#80](https://git.kebcloud.no/keb/lazysecrets/pulls/80)) ([17da9ea](https://git.kebcloud.no/keb/lazysecrets/commit/17da9eaa3271dfa315a517ad0092ab5cda0b0597))
+- H shows what's hidden; Spring keys that don't look secret are hidden ([#81](https://git.kebcloud.no/keb/lazysecrets/pulls/81)) ([913b3db](https://git.kebcloud.no/keb/lazysecrets/commit/913b3db6a938d21c6d8c9285a3111418495c7345))
+- Secret patterns for all of a repo's config files, with per-type overrides ([#82](https://git.kebcloud.no/keb/lazysecrets/pulls/82)) ([4bac06a](https://git.kebcloud.no/keb/lazysecrets/commit/4bac06ae5ba6fcb8c96d46198f01235391e29f1a))
+- Example env files are listed hidden, not skipped ([#83](https://git.kebcloud.no/keb/lazysecrets/pulls/83)) ([580c7ef](https://git.kebcloud.no/keb/lazysecrets/commit/580c7ef985599b98277d80be38e39abe169b2dc4))
+- Docker Compose files in repos ([#84](https://git.kebcloud.no/keb/lazysecrets/pulls/84)) ([0f5248d](https://git.kebcloud.no/keb/lazysecrets/commit/0f5248d8f6d27e3f95f8b9cbc28310ee7b0581f7))
+- Go to shows a repo file's icon before its name ([#85](https://git.kebcloud.no/keb/lazysecrets/pulls/85)) ([e2f289d](https://git.kebcloud.no/keb/lazysecrets/commit/e2f289da5c54dab869e7ba10ca35bdc1ab74bf28))
+
+### Fixed
+
+- Decrypt SOPS .env keys written with export or spaces ([#78](https://git.kebcloud.no/keb/lazysecrets/pulls/78)) ([39cbac9](https://git.kebcloud.no/keb/lazysecrets/commit/39cbac9aabcea11e9915363e4adae5873f9724de))
+
 ## v0.2.1 – 2026-10-15
 
 ### Fixed
