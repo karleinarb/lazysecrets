@@ -73,6 +73,10 @@ type Source struct {
 	// Here marks the source lazysecrets was started in (the current git
 	// repo): listed first, starred or not, and labelled.
 	Here bool
+	// Hidden marks a source, container or object the provider's rules
+	// left out (a Spring file with no secret-looking keys): listed only
+	// while the app shows hidden ones.
+	Hidden bool `json:",omitempty"`
 }
 
 // ObjectType is the kind of object stored in a container.
@@ -109,7 +113,8 @@ type Container struct {
 	Types []ObjectType
 	URL   string // web page for the container, if any
 	// Attrs describe it further, from the listing (a vault's settings).
-	Attrs []Attr `json:",omitempty"`
+	Attrs  []Attr `json:",omitempty"`
+	Hidden bool   `json:",omitempty"` // see Source.Hidden
 }
 
 // ObjectTypes returns the container's object types, defaulting to secrets.
@@ -134,6 +139,7 @@ type Object struct {
 	ID          string
 	Name        string
 	Detail      string // shown after the name, e.g. "jasypt" for how its value is kept
+	Hidden      bool   `json:",omitempty"` // see Source.Hidden
 	Version     string
 	Enabled     *bool
 	Updated     time.Time

@@ -177,10 +177,14 @@ app:
 	}
 	local, yml := cs[0], cs[1]
 
-	keys, _ := p.Objects(ctx, yml, provider.TypeSecret)
+	listed, _ := p.Objects(ctx, yml, provider.TypeSecret)
+	keys := shown(listed)
 	var names []string
 	for _, k := range keys {
 		names = append(names, strings.TrimSpace(k.Name+" "+k.Detail))
+	}
+	if len(listed) != 5 || !listed[0].Hidden || listed[0].Name != "server.port" {
+		t.Errorf("hidden keys: %+v", listed)
 	}
 	if want := []string{"spring.datasource.password reference", "jasypt.encryptor.password reference", "app.api-key jasypt"}; !slices.Equal(names, want) {
 		t.Errorf("keys %v, want %v", names, want)
@@ -198,7 +202,7 @@ app:
 	}
 
 	// References and Jasypt aren't plain text in git; a password is.
-	if d := details(p, yml); d["other keys"].Value != "2, not matched by the secret patterns" || d["git"].Warn || d["encryption"].Value != "jasypt: 1 of 5 values" {
+	if d := details(p, yml); d["hidden keys"].Value != "2, not matched by the secret patterns" || d["git"].Warn || d["encryption"].Value != "jasypt: 1 of 5 values" {
 		t.Errorf("yml: %+v", d)
 	}
 	if d := details(p, local); !d["git"].Warn {
@@ -208,16 +212,44 @@ app:
 	// The config's patterns, and the repo's over them.
 	all := []string{".*"}
 	p = New(Settings{Dir: root, Spring: SpringPatterns{Keys: &all}})
-	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(keys) != 5 {
-		t.Errorf("every key: %d", len(keys))
+	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(shown(keys)) != 5 {
+		t.Errorf("every key: %d", len(shown(keys)))
 	}
 	lazysecrets := filepath.Join(root, ".lazysecrets.yaml")
 	os.WriteFile(lazysecrets, []byte("spring:\n  keys: [\"url$\"]\n  values: []\n"), 0o644)
-	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(keys) != 1 || keys[0].Name != "spring.datasource.url" {
+	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(shown(keys)) != 1 || shown(keys)[0].Name != "spring.datasource.url" {
 		t.Errorf("repo's patterns: %v", keys)
 	}
 	os.WriteFile(lazysecrets, []byte("spring:\n  keys: [\"(\"]\n"), 0o644)
 	if _, err := p.Objects(ctx, yml, provider.TypeSecret); err == nil || !strings.Contains(err.Error(), ".lazysecrets.yaml: spring.keys[0]") {
 		t.Errorf("bad pattern: %v", err)
+	}
+}
+
+func shown(objects []provider.Object) []provider.Object {
+	return slices.DeleteFunc(slices.Clone(objects), func(o provider.Object) bool { return o.Hidden })
+}
+
+func TestHiddenFiles(t *testing.T) {
+	root := gitRepo(t, map[string]string{
+		"a/application.yml": "server:\n  port: 8080\n",
+		"b/application.yml": "spring.datasource.password: x\n",
+	})
+	ctx := context.Background()
+	p := New(Settings{Dir: root})
+	srcs, _ := p.Sources(ctx)
+	if len(srcs) != 1 || srcs[0].Hidden {
+		t.Fatalf("sources: %+v", srcs)
+	}
+	cs, _ := p.Containers(ctx, srcs[0])
+	if len(cs) != 2 || !cs[0].Hidden || cs[1].Hidden {
+		t.Errorf("files: %+v", cs)
+	}
+
+	// A repo with only hidden files is hidden too.
+	root = gitRepo(t, map[string]string{"application.yml": "server:\n  port: 8080\n"})
+	srcs, _ = New(Settings{Dir: root}).Sources(ctx)
+	if len(srcs) != 1 || !srcs[0].Hidden {
+		t.Errorf("hidden repo: %+v", srcs)
 	}
 }

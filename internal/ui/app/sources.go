@@ -59,6 +59,7 @@ func sourceRowID(r sourceRow) string {
 }
 
 func newSourcesList(iconSet icons.Set, mem *store.Store, recent bool) panes.List[sourceRow] {
+	render := renderSourceRow(iconSet, mem, recent)
 	return panes.NewList("[1] Sources", panes.Item[sourceRow]{
 		ID: sourceRowID,
 		// Headers have no filter text, so filtering shows just sources.
@@ -77,38 +78,46 @@ func newSourcesList(iconSet icons.Set, mem *store.Store, recent bool) panes.List
 			return cmp.Or(r.source.ProviderLabel, string(r.group)) + " " + mem.Node(sourceKey(r.source)).Note
 		},
 		Render: func(st styles.Styles, r sourceRow, width int) string {
-			node := mem.Node(sourceKey(r.source))
-			kind := st.Kind(r.group)
-			starred := ""
-			if r.kind == rowSource {
-				starred = marks(st, node, r.source.Provider, recent, time.Now())
-			}
-			switch {
-			case r.kind == rowLinks:
-				return st.Notice.Render("↗ Opened links") + " " + st.Muted.Render(fmt.Sprintf("(%s)", r.status))
-			case r.kind == rowSource && r.top:
-				return withNote(st, kind.Render(iconSet.Prefix(r.group)+"Repo · ")+starred+kind.Render(r.source.Name), node.Note, width)
-			case r.kind == rowSource && r.flat:
-				line := kind.Render(iconSet.Prefix(r.group)+fmt.Sprintf("%-10s", r.group)) + " " + starred + r.source.Name
-				if r.account != "" {
-					line += st.Muted.Render(" · " + r.account)
-				}
-				return withNote(st, line+here(st, r.source), node.Note, width)
-			case r.kind == rowSource:
-				// The provider's colour, so long groups stay recognisable.
-				return withNote(st, "  "+starred+kind.Render(r.source.Name), node.Note, width)
-			}
-			arrow := "▾"
-			if r.collapsed {
-				arrow = "▸"
-			}
-			status := st.Muted.Render(fmt.Sprintf("(%s)", r.status))
-			if r.status == "!" {
-				status = st.Error.Render("(!)")
-			}
-			return kind.Render(arrow+" "+iconSet.Prefix(r.group)+r.label) + " " + status
+			return dimIf(st, r.kind == rowSource && r.source.Hidden, render(st, r, width))
 		},
 	})
+}
+
+// renderSourceRow draws a source, a provider's header or the Opened links
+// row.
+func renderSourceRow(iconSet icons.Set, mem *store.Store, recent bool) func(styles.Styles, sourceRow, int) string {
+	return func(st styles.Styles, r sourceRow, width int) string {
+		node := mem.Node(sourceKey(r.source))
+		kind := st.Kind(r.group)
+		starred := ""
+		if r.kind == rowSource {
+			starred = marks(st, node, r.source.Provider, recent, time.Now())
+		}
+		switch {
+		case r.kind == rowLinks:
+			return st.Notice.Render("↗ Opened links") + " " + st.Muted.Render(fmt.Sprintf("(%s)", r.status))
+		case r.kind == rowSource && r.top:
+			return withNote(st, kind.Render(iconSet.Prefix(r.group)+"Repo · ")+starred+kind.Render(r.source.Name), node.Note, width)
+		case r.kind == rowSource && r.flat:
+			line := kind.Render(iconSet.Prefix(r.group)+fmt.Sprintf("%-10s", r.group)) + " " + starred + r.source.Name
+			if r.account != "" {
+				line += st.Muted.Render(" · " + r.account)
+			}
+			return withNote(st, line+here(st, r.source), node.Note, width)
+		case r.kind == rowSource:
+			// The provider's colour, so long groups stay recognisable.
+			return withNote(st, "  "+starred+kind.Render(r.source.Name), node.Note, width)
+		}
+		arrow := "▾"
+		if r.collapsed {
+			arrow = "▸"
+		}
+		status := st.Muted.Render(fmt.Sprintf("(%s)", r.status))
+		if r.status == "!" {
+			status = st.Error.Render("(!)")
+		}
+		return kind.Render(arrow+" "+iconSet.Prefix(r.group)+r.label) + " " + status
+	}
 }
 
 // rebuildSources lays out the Sources pane from the per-provider results.
@@ -129,17 +138,16 @@ func (m *Model) rebuildSources() {
 	}
 	// The repo lazysecrets started in gets a row of its own on top, so it
 	// opens on it; flat, it sorts first instead.
-	if src, ok := m.currentSource(); ok && !flat {
+	if src, ok := m.currentSource(); ok && !flat && (!src.Hidden || m.showHidden) {
 		rows = append(rows, sourceRow{kind: rowSource, group: src.Kind, provider: src.Provider, top: true, source: src})
 	}
 	for _, p := range m.providers {
 		kind, id := p.Kind(), p.ID()
 		account := accountOf(provider.Source{Kind: kind, ProviderLabel: p.Label()})
 		r, done := m.sourceResults[id]
-		sources := r.sources
-		if !flat {
-			sources = slices.DeleteFunc(slices.Clone(sources), func(s provider.Source) bool { return s.Here })
-		}
+		sources := slices.DeleteFunc(slices.Clone(r.sources), func(s provider.Source) bool {
+			return (s.Here && !flat) || (s.Hidden && !m.showHidden)
+		})
 		if kind == provider.KindRepo && !(done && (r.err != nil || len(sources) > 0)) {
 			continue // repos show once some are found to have secret files
 		}
@@ -237,6 +245,18 @@ func (m Model) selectedSource() (provider.Source, bool) {
 // onLinks reports whether the cursor is on the Opened links row.
 func (m Model) onLinks() bool {
 	return m.sources.SelectedID() == linksRowID
+}
+
+// toggleHidden lists what providers hide, dimmed, or leaves it out again.
+func (m *Model) toggleHidden() {
+	m.showHidden = !m.showHidden
+	m.containers.SetShowHidden(m.showHidden)
+	m.secrets.SetShowHidden(m.showHidden)
+	m.rebuildSources()
+	m.flash = flash{text: "hidden items hidden"}
+	if m.showHidden {
+		m.flash = flash{text: "showing hidden items, dimmed"}
+	}
 }
 
 // toggleSourcesView switches between grouped and flat, keeping the cursor

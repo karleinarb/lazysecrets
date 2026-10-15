@@ -201,3 +201,41 @@ func TestListHeader(t *testing.T) {
 		t.Errorf("no room, the text:\n%s", v)
 	}
 }
+
+func TestListHidden(t *testing.T) {
+	l := NewList("Items", Item[string]{
+		ID:     func(s string) string { return s },
+		Filter: func(s string) string { return s },
+		Render: func(_ styles.Styles, s string, _ int) string { return s },
+		Hidden: func(s string) bool { return strings.HasPrefix(s, "hidden") },
+	})
+	l.SetSize(40, 7)
+	l.SetItems([]string{"shown-a", "hidden-b", "shown-c"})
+	view := ansi.Strip(l.View(styles.Default(), true, ""))
+	if l.Len() != 2 || strings.Contains(view, "hidden-b") || !strings.Contains(view, "1 hidden") {
+		t.Fatalf("hidden listed:\n%s", view)
+	}
+	l.Move(1)
+	l.SetShowHidden(true)
+	if l.Len() != 3 || l.SelectedID() != "shown-c" {
+		t.Fatalf("shown: %d, selected %q", l.Len(), l.SelectedID())
+	}
+	l.StartFilter()
+	l.input.SetValue("hid")
+	l.applyFilter("")
+	if l.Len() != 1 || l.SelectedID() != "hidden-b" {
+		t.Fatalf("filtered with hidden shown: %d %q", l.Len(), l.SelectedID())
+	}
+
+	l = NewList("Items", Item[string]{
+		ID: func(s string) string { return s }, Filter: func(s string) string { return s },
+		Render: func(_ styles.Styles, s string, _ int) string { return s },
+		Hidden: func(string) bool { return true },
+	})
+	l.Empty = "no secrets"
+	l.SetSize(40, 7)
+	l.SetItems([]string{"a", "b"})
+	if view := ansi.Strip(l.View(styles.Default(), true, "")); !strings.Contains(view, "no secrets (2 hidden)") {
+		t.Fatalf("all hidden:\n%s", view)
+	}
+}

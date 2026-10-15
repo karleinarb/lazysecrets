@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -331,7 +332,22 @@ func unescapeProperty(s string) string {
 	return b.String()
 }
 
-// springObjects lists the file's secret keys.
+// springHidden reports whether a Spring file has no secret keys. One that
+// can't be read isn't hidden: its error is worth seeing.
+func (p *Provider) springHidden(root, file string) bool {
+	keys, err := readSpring(file)
+	if err != nil {
+		return false
+	}
+	filter, err := p.springFilterFor(root)
+	if err != nil {
+		return false
+	}
+	return !slices.ContainsFunc(keys, filter.secret)
+}
+
+// springObjects lists the file's keys, those that don't look like secrets
+// hidden.
 func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Object, error) {
 	keys, err := parseSpring(c.ID, b)
 	if err != nil {
@@ -344,9 +360,6 @@ func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Obj
 	format := provider.Attr{Label: "format", Value: "spring " + springFormat(c.ID)}
 	var out []provider.Object
 	for _, k := range keys {
-		if !filter.secret(k) {
-			continue
-		}
 		state, detail := provider.Attr{Label: "encrypted", Value: "no: plain text in the file"}, ""
 		switch {
 		case k.reference():
@@ -356,7 +369,7 @@ func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Obj
 		}
 		out = append(out, provider.Object{
 			Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.name, Name: k.name, Detail: detail,
-			Attrs: []provider.Attr{format, state},
+			Hidden: !filter.secret(k), Attrs: []provider.Attr{format, state},
 		})
 	}
 	return out, nil
@@ -406,6 +419,6 @@ func (p *Provider) springDetails(c provider.Container) (attrs []provider.Attr, p
 	}
 	return []provider.Attr{
 		{Label: "encryption", Value: jasyptShare(jasypt, len(keys))},
-		{Label: "other keys", Value: fmt.Sprintf("%d, not matched by the secret patterns", len(keys)-secrets)},
+		{Label: "hidden keys", Value: fmt.Sprintf("%d, not matched by the secret patterns", len(keys)-secrets)},
 	}, plain
 }

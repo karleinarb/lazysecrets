@@ -56,6 +56,9 @@ type Entry struct {
 	// web page (portal, workspace), if any.
 	Reference string `json:"reference,omitempty"`
 	URL       string `json:"url,omitempty"`
+	// Hidden is left out by its provider's rules (a Spring file's key
+	// that doesn't look secret), listed only with Options.Hidden.
+	Hidden bool `json:"hidden,omitempty"`
 	// Error says why a source's vaults or a vault's secrets couldn't be
 	// listed. The entry is then that source or vault, again, or with an
 	// account's sources unreadable, the account without a link.
@@ -70,6 +73,8 @@ type Options struct {
 	MaxAge time.Duration
 	// Cached lists only what's cached (and repos): nothing is loaded.
 	Cached bool
+	// Hidden lists what providers hide too, as H does in the TUI.
+	Hidden bool
 	// Kinds are the kinds of entry to list (Kinds' names); none is all.
 	// Lists only needed for other kinds aren't loaded: sources and vaults
 	// alone don't load any secrets. Lists that fail are always listed.
@@ -180,6 +185,9 @@ func (l *lister) provider(p provider.Provider) {
 
 // source emits src, and what's cached under it, and queues what's not.
 func (l *lister) source(p provider.Provider, src provider.Source) {
+	if src.Hidden && !l.o.Hidden {
+		return
+	}
 	src.Provider, src.ProviderLabel = p.ID(), p.Label()
 	l.put(p, sourceEntry(src))
 	row := cachefile.Row(p.ID(), src.ID)
@@ -196,6 +204,9 @@ func (l *lister) source(p provider.Provider, src provider.Source) {
 
 func (l *lister) containers(p provider.Provider, src provider.Source, cs []provider.Container) {
 	for _, c := range sorted(cs, func(c provider.Container) string { return c.Name }) {
+		if c.Hidden && !l.o.Hidden {
+			continue
+		}
 		c.Source = src
 		l.put(p, containerEntry(c))
 		for _, t := range c.ObjectTypes() {
@@ -221,17 +232,17 @@ func (l *lister) objects(p provider.Provider, c provider.Container, objs []provi
 	for _, o := range sorted(objs, func(o provider.Object) string { return o.Name }) {
 		o.Container = c
 		r, err := ref.ForObject(o, "")
-		if err != nil {
+		if err != nil || (o.Hidden && !l.o.Hidden) {
 			continue
 		}
 		l.put(p, Entry{Link: r.String(), Kind: strings.ToLower(string(o.Type)), Provider: kindOf(c.Source.Kind),
 			Path: []string{c.Source.Name, c.Name, o.Name}, AccountLabel: accountOf(c.Source),
-			Expires: o.Expires, Enabled: o.Enabled, Reference: o.Reference, URL: o.URL})
+			Expires: o.Expires, Enabled: o.Enabled, Reference: o.Reference, URL: o.URL, Hidden: o.Hidden})
 	}
 }
 
 func sourceEntry(src provider.Source) Entry {
-	e := Entry{Kind: "source", Provider: kindOf(src.Kind), Path: []string{src.Name}, AccountLabel: accountOf(src), URL: src.URL}
+	e := Entry{Kind: "source", Provider: kindOf(src.Kind), Path: []string{src.Name}, AccountLabel: accountOf(src), URL: src.URL, Hidden: src.Hidden}
 	if r, err := ref.ForSource(src); err == nil {
 		e.Link = r.String()
 	}
@@ -239,7 +250,7 @@ func sourceEntry(src provider.Source) Entry {
 }
 
 func containerEntry(c provider.Container) Entry {
-	e := Entry{Kind: "vault", Provider: kindOf(c.Source.Kind), Path: []string{c.Source.Name, c.Name}, AccountLabel: accountOf(c.Source), URL: c.URL}
+	e := Entry{Kind: "vault", Provider: kindOf(c.Source.Kind), Path: []string{c.Source.Name, c.Name}, AccountLabel: accountOf(c.Source), URL: c.URL, Hidden: c.Hidden}
 	if r, err := ref.ForContainer(c, provider.TypeSecret); err == nil {
 		e.Link = r.String()
 	}

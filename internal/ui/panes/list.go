@@ -22,6 +22,9 @@ type Item[T any] struct {
 	// text the row doesn't show (e.g. the provider of a grouped source).
 	FilterExtra func(T) string
 	Render      func(st styles.Styles, v T, width int) string
+	// Hidden, if set, says which items are listed only while the list
+	// shows hidden ones (SetShowHidden).
+	Hidden func(T) bool
 }
 
 // List is a scrollable, filterable list pane with loading and error states.
@@ -53,6 +56,9 @@ type List[T any] struct {
 
 	input     textinput.Model
 	filtering bool
+
+	showHidden bool
+	hidden     int // items left out for being hidden
 }
 
 func NewList[T any](title string, item Item[T]) List[T] {
@@ -75,6 +81,12 @@ func (l *List[T]) SetItems(items []T) {
 	l.Loading = false
 	l.Err = nil
 	l.applyFilter(prev)
+}
+
+// SetShowHidden lists hidden items too, or leaves them out again.
+func (l *List[T]) SetShowHidden(on bool) {
+	l.showHidden = on
+	l.applyFilter(l.SelectedID())
 }
 
 // Reset clears items, error, filter and cursor.
@@ -237,21 +249,28 @@ func (l *List[T]) UpdateFilter(msg tea.Msg) tea.Cmd {
 // applyFilter recomputes the visible items and puts the cursor back on the
 // item with ID keep if it is still visible.
 func (l *List[T]) applyFilter(keep string) {
-	l.visible, l.hits = l.visible[:0], nil
-	if q := l.input.Value(); q == "" {
-		for i := range l.items {
-			l.visible = append(l.visible, i)
+	l.visible, l.hits, l.hidden = l.visible[:0], nil, 0
+	shown := make([]int, 0, len(l.items))
+	for i, v := range l.items {
+		if !l.showHidden && l.item.Hidden != nil && l.item.Hidden(v) {
+			l.hidden++
+			continue
 		}
+		shown = append(shown, i)
+	}
+	if q := l.input.Value(); q == "" {
+		l.visible = append(l.visible, shown...)
 	} else {
 		// The row's own text is the name; FilterExtra (a note, a provider)
 		// is context, matched too but ranked lower.
-		items := make([]match.Item, len(l.items))
-		for i, v := range l.items {
+		items := make([]match.Item, len(shown))
+		for j, i := range shown {
+			v := l.items[i]
 			text := l.item.Filter(v)
-			items[i] = match.Item{Text: text, NameEnd: utf8.RuneCountInString(text)}
+			items[j] = match.Item{Text: text, NameEnd: utf8.RuneCountInString(text)}
 			if l.item.FilterExtra != nil {
 				if extra := l.item.FilterExtra(v); extra != "" {
-					items[i].Text += " " + extra
+					items[j].Text += " " + extra
 				}
 			}
 		}
@@ -262,7 +281,7 @@ func (l *List[T]) applyFilter(keep string) {
 					hits = append(hits, p)
 				}
 			}
-			l.visible = append(l.visible, h.Index)
+			l.visible = append(l.visible, shown[h.Index])
 			l.hits = append(l.hits, hits)
 		}
 	}
@@ -353,8 +372,10 @@ func (l List[T]) View(st styles.Styles, focused bool, spin string) string {
 		for _, line := range wrapLines(l.Err.Error(), inner-1) {
 			body = append(body, st.Error.Render(" "+line))
 		}
-	case len(l.visible) == 0 && len(l.items) > 0:
+	case len(l.visible) == 0 && len(l.items) > l.hidden:
 		body = append(body, st.Muted.Render(" no matches"))
+	case len(l.visible) == 0 && l.hidden > 0:
+		body = append(body, st.Muted.Render(fmt.Sprintf(" %s (%d hidden)", l.Empty, l.hidden)))
 	case len(l.visible) == 0:
 		body = append(body, st.Muted.Render(" "+l.Empty))
 	default:
@@ -375,6 +396,9 @@ func (l List[T]) View(st styles.Styles, focused bool, spin string) string {
 	counter := ""
 	if len(l.visible) > 0 {
 		counter = fmt.Sprintf("%d of %d", l.cursor+1, len(l.visible))
+	}
+	if l.hidden > 0 {
+		counter = strings.Trim(counter+fmt.Sprintf(" · %d hidden", l.hidden), " ·")
 	}
 	if l.Loading && l.Age != "" && len(l.items) > 0 {
 		counter = "cached " + l.Age + " · " + counter

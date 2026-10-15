@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
@@ -66,28 +67,41 @@ func (m *Model) searchEntries() (sources, items []option) {
 				mark: mark, run: run, reload: reload, id: sort, group: row, kind: kind}})
 		return &es[len(es)-1].opt
 	}
+	// What providers hide is left out, unless H shows it, dimmed.
+	skip := func(hidden bool) bool { return hidden && !m.showHidden }
+	dim := func(hidden bool, e *option) {
+		if hidden {
+			e.label = m.st.Muted.Render(ansi.Strip(e.label))
+		}
+	}
 	for _, p := range m.providers {
 		for _, src := range m.sourceResults[p.ID()].sources {
+			if skip(src.Hidden) {
+				continue
+			}
 			src.Provider, src.ProviderLabel = p.ID(), p.Label()
 			row := sourceRowKey(p.ID(), src.ID)
-			add(0, row, src.Kind, []string{src.Name}, accountOf(src), sourceKey(src), m.sourceMark(row), func(m *Model) tea.Cmd {
+			dim(src.Hidden, add(0, row, src.Kind, []string{src.Name}, accountOf(src), sourceKey(src), m.sourceMark(row), func(m *Model) tea.Cmd {
 				m.nav = &nav{sourceRow: row, sourceOnly: true}
 				return nil
-			}, func(m *Model) tea.Cmd { return m.loadSource(src) })
+			}, func(m *Model) tea.Cmd { return m.loadSource(src) }))
 			for _, c := range m.cache.containers[row].value {
+				if skip(c.Hidden) {
+					continue
+				}
 				r, err := ref.ForContainer(c, provider.TypeSecret)
 				if err != nil {
 					continue
 				}
 				reload := func(m *Model) tea.Cmd { return m.loadContainer(c) }
-				add(1, row, c.Source.Kind, []string{src.Name, c.Name}, accountOf(src), storeKey(c), m.vaultMark(c), func(m *Model) tea.Cmd {
+				dim(c.Hidden, add(1, row, c.Source.Kind, []string{src.Name, c.Name}, accountOf(src), storeKey(c), m.vaultMark(c), func(m *Model) tea.Cmd {
 					m.startNav(r, actGo, row)
 					return nil
-				}, reload)
+				}, reload))
 				for _, t := range []provider.ObjectType{provider.TypeSecret, provider.TypeKey, provider.TypeCertificate} {
 					for _, o := range m.cache.objects[cachefile.ObjectsKey(c, t)].value {
 						r, err := ref.ForObject(o, "")
-						if err != nil {
+						if err != nil || skip(o.Hidden) {
 							continue
 						}
 						suffix := strings.Trim(o.Detail+" · "+accountOf(src), " ·")
@@ -100,6 +114,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 							return nil
 						}, reload)
 						e.plain = c.Detail == provider.DetailPlainEnv
+						dim(o.Hidden, e)
 					}
 				}
 			}

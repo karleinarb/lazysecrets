@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/expiry"
@@ -116,7 +117,7 @@ func (m Model) containerRender(withSource bool) func(styles.Styles, provider.Con
 			}
 			line += sty.Muted.Render("  " + c.Detail)
 		}
-		line = marks(sty, n, c.Source.Provider, m.recentIcon, m.now()) + line
+		line = dimIf(sty, c.Hidden, marks(sty, n, c.Source.Provider, m.recentIcon, m.now())+line)
 		if withSource {
 			src := c.Source.Name
 			if account := accountOf(c.Source); account != "" {
@@ -140,6 +141,7 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 		if o.Detail != "" {
 			line += sty.Muted.Render("  " + o.Detail)
 		}
+		line = dimIf(sty, o.Hidden, line)
 		switch state, left := m.expiry(o); state {
 		case expiry.Expired:
 			line += " " + sty.Error.Render("✗ expired")
@@ -148,6 +150,15 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 		}
 		return withNote(sty, line, n.Note, width)
 	}
+}
+
+// dimIf draws a hidden item's row (shown with H) in the muted colour,
+// whole, so it stands apart from what's listed by the provider's rules.
+func dimIf(sty styles.Styles, hidden bool, line string) string {
+	if !hidden {
+		return line
+	}
+	return sty.Muted.Render(ansi.Strip(line))
 }
 
 // starredFirst moves starred items to the front, keeping the order

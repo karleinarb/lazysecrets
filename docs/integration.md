@@ -51,6 +51,7 @@ so `^prod` finds names starting with prod.
 | `--cached` | only what's cached, at once: nothing is loaded from Azure or Databricks |
 | `--max-age 2m` | load cached lists older than this again |
 | `--errors=false` | leave out the vaults and sources it couldn't read |
+| `--hidden` | list what's [hidden](repos.md#spring-boot-config) too, as `H` shows it (json: `"hidden": true`) |
 | `--color never` | no colours, for scripts |
 | `--icons=false` | no provider icons |
 | `--stars=false` | no ★ before starred names (in `favouriteColor`) |

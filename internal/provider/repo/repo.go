@@ -190,10 +190,17 @@ func (p *Provider) Current(ctx context.Context) (provider.Source, bool) {
 		return provider.Source{}, false
 	}
 	src := p.source(r)
-	if files, err := p.Containers(ctx, src); err == nil && len(files) == 0 {
+	files, err := p.Containers(ctx, src)
+	if err == nil && len(files) == 0 {
 		return provider.Source{}, false
 	}
+	src.Hidden = err == nil && allHidden(files)
 	return src, true
+}
+
+// allHidden reports whether a repo's files are all hidden: the repo is too.
+func allHidden(files []provider.Container) bool {
+	return !slices.ContainsFunc(files, func(c provider.Container) bool { return !c.Hidden })
 }
 
 func (p *Provider) source(r repoInfo) provider.Source {
@@ -264,6 +271,7 @@ func (p *Provider) Sources(ctx context.Context) ([]provider.Source, error) {
 	parallel(len(srcs), func(i int) {
 		files, err := p.Containers(ctx, srcs[i])
 		keep[i] = err != nil || len(files) > 0
+		srcs[i].Hidden = err == nil && allHidden(files)
 	})
 	var out []provider.Source
 	for i, src := range srcs {
@@ -327,6 +335,7 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 			c.Detail = provider.DetailPlainEnv
 		case IsSpring(f):
 			c.Detail = "spring · " + springFormat(f)
+			c.Hidden = p.springHidden(r.root, path)
 		default:
 			return
 		}

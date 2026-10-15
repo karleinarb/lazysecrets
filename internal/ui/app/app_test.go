@@ -1344,3 +1344,34 @@ func TestErrorLog(t *testing.T) {
 		t.Errorf("log %+v", d.m.errLog)
 	}
 }
+
+// hiding marks the secret db-password hidden, as the repo provider does
+// a Spring key that doesn't look secret.
+type hiding struct{ provider.Provider }
+
+func (h hiding) Objects(ctx context.Context, c provider.Container, t provider.ObjectType) ([]provider.Object, error) {
+	objs, err := h.Provider.Objects(ctx, c, t)
+	for i := range objs {
+		objs[i].Hidden = objs[i].Name == "db-password"
+	}
+	return objs, err
+}
+
+func TestToggleHidden(t *testing.T) {
+	t.Parallel()
+	d := newDriver(t, hiding{fake.Azure(0)})
+	if _, _, s := d.selected(); s == "db-password" || s == "" {
+		t.Fatalf("selected %q: the hidden one, or none", s)
+	}
+	if strings.Contains(d.screen(), "db-password") || !strings.Contains(d.screen(), "1 hidden") {
+		t.Fatalf("hidden one listed:\n%s", d.screen())
+	}
+	d.keys("H")
+	if !strings.Contains(d.screen(), "db-password") || !strings.Contains(d.screen(), "showing hidden") {
+		t.Fatalf("H doesn't show it:\n%s", d.screen())
+	}
+	d.keys("H")
+	if strings.Contains(d.screen(), "db-password") {
+		t.Fatalf("H again doesn't hide it:\n%s", d.screen())
+	}
+}

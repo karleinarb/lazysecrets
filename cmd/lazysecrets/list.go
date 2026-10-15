@@ -57,6 +57,7 @@ func listCmd(providers []provider.Provider, st *store.Store, cachePath string, t
 	expiry := fs.Bool("expiry", true, "mark and say which have expired (✗ expired) or expire within ui.expiryWarningDays (⚠ expires in 12d) (text)")
 	kinds := fs.String("kind", "", "only these kinds, comma-separated: "+strings.Join(listing.Kinds, ", ")+" (vault: also scopes and repo files)")
 	showErrors := fs.Bool("errors", true, "list the lists that can't be read, with why (text: ✗ lines; json: \"error\")")
+	hidden := fs.Bool("hidden", false, "list what's hidden too, as H does in the TUI: Spring config keys that don't look secret, and files and repos with only those (json: \"hidden\")")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func listCmd(providers []provider.Provider, st *store.Store, cachePath string, t
 		f = cachefile.Read(cachePath)
 	}
 	f, loaded := listing.Run(context.Background(), listing.Options{
-		Providers: providers, Cache: f, MaxAge: *maxAge, Cached: *cached, Kinds: only, Timeout: timeout,
+		Providers: providers, Cache: f, MaxAge: *maxAge, Cached: *cached, Kinds: only, Timeout: timeout, Hidden: *hidden,
 		Mark: func(link, account string) listing.Marks {
 			n := st.Node(link)
 			return listing.Marks{Starred: n.StarredFor(account), Recent: n.UsedLately(now),

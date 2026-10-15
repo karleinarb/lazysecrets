@@ -69,7 +69,8 @@ sharing:
 
 `application.yml`, `application-prod.properties`, `bootstrap.yaml` and the
 like, tracked by git (not those in a Helm chart's `templates/`). Most of
-their keys aren't secret, so only those that look like one are listed:
+their keys aren't secret, so only those that look like one are listed; the
+rest are hidden:
 
 - **keys** named like a secret: ending in `password`, `pwd`, `secret`,
   `token`, `key`, `credentials`, `salt`, `connection-string` and the
@@ -78,9 +79,11 @@ their keys aren't secret, so only those that look like one are listed:
   password (`jdbc:postgresql://app:pw@db/app`), or a connection string
   with `AccountKey=`, `SharedAccessKey=` or `Password=`.
 
-A file's details count the keys left out, and `e` opens it whole. A
-`${DB_PASSWORD}` value is marked as a reference: the secret is set
-elsewhere. A tracked file is marked in red only when a listed key has its
+A file with none is hidden too, and a repo with only such files. `H` shows
+what's hidden, dimmed, in the panes and in Go to (`lazysecrets list
+--hidden` lists it); a pane's counter says how many it hides. A file's
+details count its hidden keys, and `e` opens it whole. A `${DB_PASSWORD}`
+value is marked as a reference: the secret is set elsewhere. A tracked file is marked in red only when a listed key has its
 value in plain text.
 
 Each list of regexps replaces its default; `keys: [".*"]` lists every key:

@@ -232,6 +232,7 @@ type Model struct {
 	// provider finds it (provider.Current), before Sources lists them all.
 	current     *provider.Source
 	flatSources bool // Sources pane without provider groups
+	showHidden  bool // H: what providers hide is listed too, dimmed
 	sourcesFavs bool // Sources pane on its Favourites tab
 	history     bool // count uses of items (usage.go)
 	onActive    func()
@@ -469,6 +470,7 @@ func New(providers []provider.Provider, opts Options) Model {
 		Filter:      func(c provider.Container) string { return c.Name },
 		FilterExtra: func(c provider.Container) string { return m.store.Node(storeKey(c)).Note },
 		Render:      m.containerRender(false),
+		Hidden:      func(c provider.Container) bool { return c.Hidden },
 	})
 
 	m.secrets = panes.NewList("[3] Secrets", panes.Item[provider.Object]{
@@ -478,6 +480,7 @@ func New(providers []provider.Provider, opts Options) Model {
 		// Typing "expir" finds what has expired or soon will.
 		FilterExtra: func(o provider.Object) string { return m.store.Node(objectKey(o)).Note + " " + m.expiryWord(o) },
 		Render:      m.objectRender(),
+		Hidden:      func(o provider.Object) bool { return o.Hidden },
 	})
 	m.secrets.Empty = "no secrets"
 	m.objType, m.wantType = provider.TypeSecret, provider.TypeSecret
@@ -979,6 +982,8 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (cmd tea.Cmd, quit bool) {
 		m.cycleZoom(-1)
 	case key.Matches(msg, k.SourcesView):
 		m.toggleSourcesView()
+	case key.Matches(msg, k.ToggleHidden):
+		m.toggleHidden()
 	case key.Matches(msg, k.Versions):
 		if m.versionsOf != nil {
 			m.closeVersions()

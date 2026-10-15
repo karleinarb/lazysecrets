@@ -335,6 +335,12 @@ func (d Detail) lines(st styles.Styles) []string {
 			}
 		}
 	case ValueShown:
+		if d.value.Reveal() == "" {
+			// Not in the value's colour, nor a word a value could be.
+			field(label, st.Muted.Italic(true).Render("∅ no value (an empty string)"))
+			out = append(out, valueIndent+hints("hide"))
+			break
+		}
 		// Where the dots were, continuing under itself; the keys below.
 		first := true
 		lines, note := valueView(d.value.Reveal())
