@@ -2,6 +2,12 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.2.1 – 2026-10-15
+
+### Fixed
+
+- A link opens lazysecrets with your cache and next to your running instances ([#71](https://git.kebcloud.no/keb/lazysecrets/pulls/71)) ([bb41767](https://git.kebcloud.no/keb/lazysecrets/commit/bb41767cbad00bab4f1824f4e0754cc7abd98c59))
+
 ## v0.2.0 – 2026-10-14
 
 ### Added
