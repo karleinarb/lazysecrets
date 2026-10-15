@@ -292,9 +292,12 @@ func TestPlainEnvFiles(t *testing.T) {
 	got := map[string]string{}
 	for _, c := range files {
 		got[c.Name] = c.Detail
+		if c.Hidden != (c.Name == ".env.example") {
+			t.Errorf("%s: hidden %t", c.Name, c.Hidden)
+		}
 	}
-	if len(got) != 2 || got[".env"] != "env · plain text" || got["secrets/app.yaml"] != "sops · age" {
-		t.Fatalf("files %v (want .env and the sops file; not the example or node_modules)", got)
+	if len(got) != 3 || got[".env"] != "env · plain text" || got[".env.example"] != "env · plain text" || got["secrets/app.yaml"] != "sops · age" {
+		t.Fatalf("files %v (want .env, the example, hidden, and the sops file; not node_modules)", got)
 	}
 
 	var env provider.Container
@@ -319,7 +322,7 @@ func TestPlainEnvFiles(t *testing.T) {
 	os.WriteFile(filepath.Join(root, ".sops.yaml"), []byte("creation_rules:\n  - path_regex: nowhere/.*\n"), 0o644)
 	exec.Command("git", "-C", root, "add", ".sops.yaml").Run()
 	files, _ = New(Settings{Dir: root}).Containers(ctx, srcs[0])
-	if names := names(files, func(c provider.Container) string { return c.Name }); !slices.Equal(names, []string{".env"}) {
+	if names := names(files, func(c provider.Container) string { return c.Name }); !slices.Equal(names, []string{".env", ".env.example"}) {
 		t.Errorf("with rules elsewhere: %v", names)
 	}
 }

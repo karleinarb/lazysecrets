@@ -333,8 +333,9 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 			c.Detail = "sops · " + strings.Join(meta.methods, ", ")
 		case isSops:
 			return // a SOPS file where .sops.yaml says SOPS files don't go
-		case IsEnv(f):
+		case isEnvNamed(f):
 			c.Detail = provider.DetailPlainEnv
+			c.Hidden = isExample(f)
 		case IsSpring(f):
 			c.Detail = "spring · " + springFormat(f)
 			c.Hidden = p.springHidden(r.root, path)
@@ -717,7 +718,7 @@ func envFiles(root string, tracked []string) []string {
 	dirs := map[string]bool{".": true}
 	for _, f := range tracked {
 		isTracked[f] = true
-		if IsEnv(f) {
+		if isEnvNamed(f) {
 			out = append(out, f)
 		}
 		if d := path.Dir(f); !dirs[d] && !inPackages(f) {
@@ -731,7 +732,7 @@ func envFiles(root string, tracked []string) []string {
 		}
 		for _, e := range entries {
 			f := path.Join(d, e.Name())
-			if e.Type().IsRegular() && !isTracked[f] && IsEnv(f) {
+			if e.Type().IsRegular() && !isTracked[f] && isEnvNamed(f) {
 				out = append(out, f)
 			}
 		}
@@ -766,16 +767,29 @@ func inPackages(f string) bool {
 // .env, .env.local, prod.env; not .env.example and the like, nor one in
 // dependencies.
 func IsEnv(f string) bool {
-	if inPackages(f) {
-		return false
-	}
+	return isEnvNamed(f) && !isExample(f)
+}
+
+// isEnvNamed reports whether a file outside dependencies is named like an
+// env file, examples too.
+func isEnvNamed(f string) bool {
 	base := strings.ToLower(path.Base(f))
-	for _, ext := range []string{".example", ".sample", ".template", ".dist", ".tmpl"} {
-		if strings.HasSuffix(base, ext) {
-			return false
+	return !inPackages(f) && (base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env"))
+}
+
+var exampleWords = []string{"example", "sample", "template", "dist", "tmpl"}
+
+// isExample reports whether a file is an example or template of another:
+// .env.example, docker-compose.example.yml. They're listed hidden: someone
+// may have put a real value in one.
+func isExample(f string) bool {
+	base := strings.ToLower(path.Base(f))
+	for _, w := range exampleWords {
+		if strings.HasSuffix(base, "."+w) || strings.Contains(base, "."+w+".") {
+			return true
 		}
 	}
-	return base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env")
+	return false
 }
 
 // plainValue reads a key from a plain env file.

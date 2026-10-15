@@ -71,7 +71,7 @@ func (m *Model) shareFiles(src provider.Source, cs []provider.Container) tea.Cmd
 				return msg
 			}
 			for _, c := range all {
-				if c.Detail == provider.DetailPlainEnv {
+				if c.Detail == provider.DetailPlainEnv && !c.Hidden { // not .env.example
 					cs = append(cs, c)
 				}
 			}

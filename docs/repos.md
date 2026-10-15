@@ -29,8 +29,9 @@ anything by hand.
 ## Which files
 
 **Env files**: `.env`, `.env.local`, `prod.env` and the like, also when
-git-ignored (as they usually are), in the folders git tracks files in;
-not `.env.example`, `.sample`, `.template` and the like. They're read
+git-ignored (as they usually are), in the folders git tracks files in.
+`.env.example`, `.sample`, `.template` and the like are listed hidden
+(`H` shows them): someone may have put a real value in one. They're read
 directly; a file with SOPS metadata is always treated as SOPS, whatever
 its name.
 
