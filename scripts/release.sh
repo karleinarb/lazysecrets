@@ -11,12 +11,20 @@
 # listed under the release that follows.
 set -euo pipefail
 
-dry=false
-if [ "${1:-}" = "--dry-run" ]; then
-  dry=true
-  shift
-fi
-tag="${1:?usage: $0 [--dry-run] <patch|minor|major, or a tag like v0.2.0>}"
+usage="usage: $0 [--dry-run] <patch|minor|major, or a tag like v0.2.0>"
+# Options anywhere: minor --dry-run must not release.
+dry=false tag=""
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run | -n) dry=true ;;
+    -*) echo "$arg: unknown option. $usage" >&2; exit 1 ;;
+    *)
+      [ -z "$tag" ] || { echo "$arg: one version only. $usage" >&2; exit 1; }
+      tag=$arg
+      ;;
+  esac
+done
+[ -n "$tag" ] || { echo "$usage" >&2; exit 1; }
 command -v git-cliff >/dev/null || { echo "git-cliff is needed: brew install git-cliff" >&2; exit 1; }
 
 cd "$(dirname "$0")/.."
