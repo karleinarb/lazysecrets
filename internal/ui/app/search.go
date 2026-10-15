@@ -90,7 +90,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 						if err != nil {
 							continue
 						}
-						suffix := accountOf(src)
+						suffix := strings.Trim(o.Detail+" · "+accountOf(src), " ·")
 						if t != provider.TypeSecret {
 							typ := strings.TrimSuffix(strings.ToLower(pluralLabels[t]), "s") // "key"
 							suffix = strings.Trim(typ+" · "+suffix, " ·")

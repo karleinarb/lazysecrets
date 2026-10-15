@@ -15,6 +15,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/jasypt"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
@@ -137,7 +138,7 @@ func (k springKey) reference() bool {
 }
 
 func (k springKey) jasypt() bool {
-	return strings.HasPrefix(k.value, "ENC(") && strings.HasSuffix(k.value, ")")
+	return jasypt.Is(k.value)
 }
 
 // plain reports whether the file holds the value itself, readable.
@@ -346,15 +347,15 @@ func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Obj
 		if !filter.secret(k) {
 			continue
 		}
-		state := provider.Attr{Label: "encrypted", Value: "no: plain text in the file"}
+		state, detail := provider.Attr{Label: "encrypted", Value: "no: plain text in the file"}, ""
 		switch {
 		case k.reference():
-			state = provider.Attr{Label: "value", Value: "a reference: the secret is set elsewhere"}
+			state, detail = provider.Attr{Label: "value", Value: "a reference: the secret is set elsewhere"}, "reference"
 		case k.jasypt():
-			state = provider.Attr{Label: "encrypted", Value: "jasypt"}
+			state, detail = provider.Attr{Label: "encrypted", Value: "jasypt"}, "jasypt"
 		}
 		out = append(out, provider.Object{
-			Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.name, Name: k.name,
+			Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.name, Name: k.name, Detail: detail,
 			Attrs: []provider.Attr{format, state},
 		})
 	}
@@ -403,12 +404,8 @@ func (p *Provider) springDetails(c provider.Container) (attrs []provider.Attr, p
 			jasypt++
 		}
 	}
-	encryption := "none: plain text"
-	if jasypt > 0 {
-		encryption = fmt.Sprintf("jasypt: %d of %d values", jasypt, len(keys))
-	}
 	return []provider.Attr{
-		{Label: "encryption", Value: encryption},
+		{Label: "encryption", Value: jasyptShare(jasypt, len(keys))},
 		{Label: "other keys", Value: fmt.Sprintf("%d, not matched by the secret patterns", len(keys)-secrets)},
 	}, plain
 }

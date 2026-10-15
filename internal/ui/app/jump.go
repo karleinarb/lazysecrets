@@ -38,11 +38,13 @@ func (m *Model) storeEntries() (favs, recent []option) {
 			return nil
 		}
 		var out []entry
+		detail := m.objectDetail(key)
 		add := func(path []string, acct string, depth int, run func(*Model) tea.Cmd) {
 			account := ""
 			if p, ok := m.byID[acct]; ok {
 				account = accountOf(provider.Source{Kind: p.Kind(), ProviderLabel: p.Label()})
 			}
+			account = strings.Trim(detail+" · "+account, " ·")
 			sort := strings.ToLower(strings.Join(path, "/")) + " " + account
 			out = append(out, entry{depth, sort, option{
 				label: m.pathLabel(r.Kind, path, account), note: n.Note, mark: " ",
@@ -155,6 +157,19 @@ func (m Model) inPlainEnv(r ref.Ref) bool {
 		}
 	}
 	return false
+}
+
+// objectDetail is the Detail of the secret with the store key key, as far
+// as the lists loaded tell.
+func (m Model) objectDetail(key string) string {
+	for _, e := range m.cache.objects {
+		for _, o := range e.value {
+			if o.Detail != "" && objectKey(o) == key {
+				return o.Detail
+			}
+		}
+	}
+	return ""
 }
 
 // repoLabel draws a repo, or a file in it, as everywhere else: the repo

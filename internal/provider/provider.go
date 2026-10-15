@@ -133,6 +133,7 @@ type Object struct {
 	Type        ObjectType
 	ID          string
 	Name        string
+	Detail      string // shown after the name, e.g. "jasypt" for how its value is kept
 	Version     string
 	Enabled     *bool
 	Updated     time.Time

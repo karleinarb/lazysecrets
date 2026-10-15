@@ -104,11 +104,12 @@ they are.
 
 ## Decrypting
 
-Listing never decrypts: SOPS encrypts values only, so keys and metadata
-(encryption, last modified) are read straight from the files. Revealing,
-copying or `lazysecrets get` decrypts one value with your `sops` binary, so
-whatever sops uses works (age keys, Azure Key Vault through az, AWS/GCP
-KMS, PGP). When sops can't decrypt, its whole error message is shown.
+Listing never decrypts: SOPS and Jasypt encrypt values only, so keys and
+metadata (encryption, last modified) are read straight from the files.
+Revealing, copying or `lazysecrets get` decrypts one value; SOPS's with
+your `sops` binary, so whatever sops uses works (age keys, Azure Key Vault
+through az, AWS/GCP KMS, PGP). When sops can't decrypt, its whole error
+message is shown.
 
 On a file, the right pane shows how it's encrypted and the keys it's
 encrypted for (public: age recipients, Key Vault keys, KMS ARNs, PGP
@@ -116,6 +117,22 @@ fingerprints), when it was last encrypted, and what git knows of it:
 tracked, ignored or neither, and its last commit. A plain `.env` file that
 git tracks, or that isn't ignored, is marked in red: its values are in the
 repo's history, or easily could be.
+
+### Jasypt
+
+A value like `ENC(...)` in a plain `.env` or Spring file is
+[Jasypt](http://www.jasypt.org)'s, decrypted when it's revealed or copied
+with jasypt-spring-boot's default algorithm (3.0+:
+`PBEWITHHMACSHA512ANDAES_256`). The password is, as in Spring:
+
+1. `$JASYPT_ENCRYPTOR_PASSWORD`,
+2. the file's own: `jasypt.encryptor.password` in a Spring file,
+   `JASYPT_ENCRYPTOR_PASSWORD` in a `.env`; a `${VAR}` (or
+   `${VAR:default}`) in it is read from the environment.
+
+Environment variables are lazysecrets' own: a link opened from the browser
+starts it without your shell's. A `.env` whose values are all Jasypt's
+isn't marked in red.
 
 ## Opening files
 

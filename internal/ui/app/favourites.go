@@ -137,6 +137,9 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 			line = sty.Muted.Render(o.Name + " (disabled)")
 		}
 		line = marks(sty, n, o.Container.Source.Provider, m.recentIcon, m.now()) + line
+		if o.Detail != "" {
+			line += sty.Muted.Render("  " + o.Detail)
+		}
 		switch state, left := m.expiry(o); state {
 		case expiry.Expired:
 			line += " " + sty.Error.Render("✗ expired")

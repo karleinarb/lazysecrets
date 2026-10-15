@@ -141,7 +141,7 @@ jasypt:
   encryptor:
     password: ${JASYPT_ENCRYPTOR_PASSWORD}
 app:
-  api-key: ENC(abc==)
+  api-key: ENC(5IQUKT4B7j38TnZJ+BlWqo/zSkKHTjl4XRJyaQEHgkCy4r00avLt4dWqFB74X0Zw)
 `,
 		"src/main/resources/application-local.properties": "server.port=8081\nspring.datasource.password=hunter2\n",
 		"applicationset/applications.yaml":                "kind: ApplicationSet\n",
@@ -180,12 +180,13 @@ app:
 	keys, _ := p.Objects(ctx, yml, provider.TypeSecret)
 	var names []string
 	for _, k := range keys {
-		names = append(names, k.Name)
+		names = append(names, strings.TrimSpace(k.Name+" "+k.Detail))
 	}
-	if want := []string{"spring.datasource.password", "jasypt.encryptor.password", "app.api-key"}; !slices.Equal(names, want) {
+	if want := []string{"spring.datasource.password reference", "jasypt.encryptor.password reference", "app.api-key jasypt"}; !slices.Equal(names, want) {
 		t.Errorf("keys %v, want %v", names, want)
 	}
-	if v, err := p.Value(ctx, keys[2]); err != nil || v.Reveal() != "ENC(abc==)" {
+	t.Setenv("JASYPT_ENCRYPTOR_PASSWORD", "test-password")
+	if v, err := p.Value(ctx, keys[2]); err != nil || v.Reveal() != "hunter2" {
 		t.Errorf("value: %q %v", v.Reveal(), err)
 	}
 	link := provider.Object{Container: provider.Container{Source: srcs[0], Name: "src/main/resources/application.yml"}, Name: "spring.datasource.password"}

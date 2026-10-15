@@ -32,6 +32,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/jasypt"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
@@ -380,8 +381,11 @@ func (p *Provider) Objects(_ context.Context, c provider.Container, t provider.O
 			Container: c, Type: provider.TypeSecret,
 			ID: c.ID + "\x00" + k.extract, Name: k.name, Updated: meta.modified, Attrs: attrs,
 		}
-		if isSops && !k.encrypted {
+		switch {
+		case isSops && !k.encrypted:
 			o.Attrs = append(slices.Clip(attrs), provider.Attr{Label: "encrypted", Value: "no (left in plain text by the file's sops rules)"})
+		case !isSops && k.jasypt:
+			o.Attrs, o.Detail = []provider.Attr{attrs[0], {Label: "encrypted", Value: "jasypt"}}, "jasypt"
 		}
 		out = append(out, o)
 	}
@@ -396,17 +400,23 @@ func (p *Provider) Versions(context.Context, provider.Object) ([]provider.Object
 	return nil, provider.ErrUnsupported
 }
 
-// Value decrypts one key with sops.
+// Value reads one key: from a plain file, decrypting a Jasypt value; from
+// a SOPS file, with sops.
 func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.SecretValue, error) {
 	file, extract, ok := strings.Cut(o.ID, "\x00")
 	if !ok { // made from a link: the repo's root, the file's path, the key
 		file = filePath(o.Container)
 	}
 	if _, isSops := readMeta(file); !isSops {
+		read := plainValue
 		if IsSpring(file) {
-			return springValue(file, o.Name)
+			read = springValue
 		}
-		return plainValue(file, o.Name)
+		v, err := read(file, o.Name)
+		if err != nil {
+			return v, err
+		}
+		return jasyptValue(file, v)
 	}
 	if !ok {
 		var err error
@@ -1045,7 +1055,8 @@ type key struct {
 	name      string // db.password, list[0], with . [ ] \ in keys escaped
 	extract   string // sops --extract: ["db"]["password"]
 	encrypted bool
-	line      int // 1-based
+	jasypt    bool // a plain env file's ENC(...) value
+	line      int  // 1-based
 }
 
 // parseKeys lists a sops file's keys without decrypting anything.
@@ -1070,7 +1081,7 @@ func parseKeys(file string, b []byte) ([]key, error) {
 				continue
 			}
 			sopsKey, _, _ := strings.Cut(line, "=") // sops keeps export and spaces in the key
-			out = append(out, key{name: k, extract: quote(sopsKey), encrypted: strings.HasPrefix(v, "ENC["), line: i + 1})
+			out = append(out, key{name: k, extract: quote(sopsKey), encrypted: strings.HasPrefix(v, "ENC["), jasypt: jasypt.Is(v), line: i + 1})
 		}
 		return out, nil
 	case "ini":
