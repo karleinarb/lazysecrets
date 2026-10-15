@@ -84,6 +84,7 @@ func TestLoadRejectsMistakes(t *testing.T) {
 		"workspace":  "sharing:\n  key: \"{{secrets/team/env-share}}\"\n",
 		"short keys": "sharing:\n  keyRules:\n    minLength: 8\n",
 		"classes":    "sharing:\n  keyRules:\n    minClasses: 5\n",
+		"regexp":     "providers:\n  repos:\n    spring:\n      keys: [\"(pass\"]\n",
 	} {
 		if _, err := LoadAll([]string{write(t, content)}); err == nil {
 			t.Errorf("%s: no error", name)

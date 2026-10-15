@@ -22,7 +22,12 @@ func (p *Provider) Details(ctx context.Context, c provider.Container) ([]provide
 	}
 	var out []provider.Attr
 	meta, isSops := readMeta(c.ID)
-	if isSops {
+	// A plain file's values are at risk in git; a Spring file's only when
+	// one of its secrets is in plain text.
+	plain := !isSops
+	if !isSops && IsSpring(c.ID) {
+		out, plain = p.springDetails(c)
+	} else if isSops {
 		out = append(out, provider.Attr{Label: "encryption", Value: "sops · " + strings.Join(meta.methods, ", ")})
 		for i, k := range meta.recipients {
 			label := ""
@@ -43,7 +48,7 @@ func (p *Provider) Details(ctx context.Context, c provider.Container) ([]provide
 		return strings.TrimSpace(string(b)), err == nil
 	}
 	switch _, tracked := git("ls-files", "--error-unmatch", "--", rel); {
-	case tracked && !isSops:
+	case tracked && plain:
 		out = append(out, provider.Attr{Label: "git", Value: "tracked: its values are in the repo's history", Warn: true})
 	case tracked:
 		out = append(out, provider.Attr{Label: "git", Value: "tracked"})
@@ -51,7 +56,7 @@ func (p *Provider) Details(ctx context.Context, c provider.Container) ([]provide
 		if _, ignored := git("check-ignore", "-q", "--", rel); ignored {
 			out = append(out, provider.Attr{Label: "git", Value: "ignored"})
 		} else {
-			out = append(out, provider.Attr{Label: "git", Value: "untracked and not ignored: easy to commit by mistake", Warn: !isSops})
+			out = append(out, provider.Attr{Label: "git", Value: "untracked and not ignored: easy to commit by mistake", Warn: plain})
 		}
 		return out, nil
 	}

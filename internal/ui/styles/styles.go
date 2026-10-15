@@ -34,6 +34,7 @@ type Styles struct {
 	KindAzure      lipgloss.Style
 	KindDatabricks lipgloss.Style
 	KindRepo       lipgloss.Style
+	Spring         lipgloss.Style // Spring Boot config files
 
 	// themed marks the selection colours as set by the theme, so
 	// OnBackground leaves them.
@@ -70,6 +71,7 @@ func Default() Styles {
 		KindAzure:      lipgloss.NewStyle().Foreground(lipgloss.Blue),
 		KindDatabricks: lipgloss.NewStyle().Foreground(lipgloss.Red),
 		KindRepo:       lipgloss.NewStyle().Foreground(lipgloss.Magenta),
+		Spring:         lipgloss.NewStyle().Foreground(lipgloss.Green),
 	}
 }
 

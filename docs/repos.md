@@ -1,9 +1,9 @@
-# SOPS and .env files in git repos
+# SOPS, .env and Spring files in git repos
 
 lazysecrets shows git repositories under **Repos**: their
 [SOPS](https://github.com/getsops/sops)-encrypted files (YAML, JSON,
-`.env`, INI) and plain env files as vaults, and the keys in them
-(`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
+`.env`, INI), plain env files and [Spring Boot config](#spring-boot-config)
+as vaults, and the keys in them (`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
 escaped, `app\.name`, so it doesn't read as nesting.
 
 ## Which repos
@@ -46,7 +46,7 @@ Folders of dependencies and caches are never looked in, tracked or not:
 3. where the repo's `.sops.yaml` `creation_rules` say SOPS files go,
 4. the whole repo.
 
-`include`/`exclude` apply to env files too.
+`include`/`exclude` apply to env and Spring files too.
 
 ```yaml
 providers:
@@ -64,6 +64,43 @@ A repo's `.lazysecrets.yaml` can also name the secret its env files are
 sharing:
   key: https://kv-team.vault.azure.net/secrets/env-share   # or its lazysecrets:// link
 ```
+
+## Spring Boot config
+
+`application.yml`, `application-prod.properties`, `bootstrap.yaml` and the
+like, tracked by git (not those in a Helm chart's `templates/`). Most of
+their keys aren't secret, so only those that look like one are listed:
+
+- **keys** named like a secret: ending in `password`, `pwd`, `secret`,
+  `token`, `key`, `credentials`, `salt`, `connection-string` and the
+  like (`spring.datasource.password`, `client-secret`, `checkoutKey`),
+- **values** that look like one: Jasypt's `ENC(...)`, a URL with a
+  password (`jdbc:postgresql://app:pw@db/app`), or a connection string
+  with `AccountKey=`, `SharedAccessKey=` or `Password=`.
+
+A file's details count the keys left out, and `e` opens it whole. A
+`${DB_PASSWORD}` value is marked as a reference: the secret is set
+elsewhere. A tracked file is marked in red only when a listed key has its
+value in plain text.
+
+Each list of regexps replaces its default; `keys: [".*"]` lists every key:
+
+```yaml
+providers:
+  repos:
+    spring:
+      keys: ["(?i)(password|secret|token|key)$", "bearer$"]   # matched against the key's name
+      values: ["^ENC\\(.+\\)$"]                               # and against its value
+```
+
+A repo's `.lazysecrets.yaml` can set `spring` too, for everyone, and wins
+over the config, one list at a time.
+
+Keys are named as Spring names them, `spring.datasource.password`; in a
+file with several documents (`---`, or `#---` in `.properties`), a later
+document's keys get its profile, `spring.datasource.password (prod)`.
+Values Maven fills in at build time (`@project.version@`) are read as
+they are.
 
 ## Decrypting
 

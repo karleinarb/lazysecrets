@@ -15,6 +15,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/commands"
+	"git.kebcloud.no/keb/lazysecrets/internal/provider/repo"
 	"git.kebcloud.no/keb/lazysecrets/internal/share"
 	"git.kebcloud.no/keb/lazysecrets/internal/update"
 )
@@ -153,6 +154,8 @@ type Repos struct {
 	// a repo's .sops.yaml creation_rules say where to look.
 	Include []string `yaml:"include"`
 	Exclude []string `yaml:"exclude"`
+	// Spring says which keys of Spring Boot config files are secrets.
+	Spring repo.SpringPatterns `yaml:"spring"`
 }
 
 type Azure struct {
@@ -291,6 +294,9 @@ func (c Config) validate(path string) error {
 		if d < 0 {
 			return fmt.Errorf("%s: %s: %s is negative", path, name, d)
 		}
+	}
+	if err := c.Providers.Repos.Spring.Check(); err != nil {
+		return fmt.Errorf("%s: providers.repos.%w", path, err)
 	}
 	for i, v := range c.Providers.Azure.Vaults {
 		if !strings.HasPrefix(v, "https://") {

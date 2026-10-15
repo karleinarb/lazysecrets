@@ -1,6 +1,7 @@
 // Package repo browses the encrypted secret files in git repositories:
 // a repo is a source, its secret files the containers (vault level), and
-// their keys the secrets. Secret files are SOPS files and plain env files.
+// their keys the secrets. Secret files are SOPS files, plain env files and
+// Spring Boot config (spring.go).
 //
 // Listing never decrypts: SOPS encrypts values only, so a file's keys and
 // metadata are read directly. A value is decrypted when it's revealed or
@@ -49,6 +50,9 @@ type Settings struct {
 	// Include and Exclude are globs relative to a repo's root (** matches
 	// any depth), for repos without their own .lazysecrets.yaml.
 	Include, Exclude []string
+	// Spring says which keys of Spring Boot config files are secrets, for
+	// repos whose .lazysecrets.yaml doesn't.
+	Spring SpringPatterns
 	// Sops is the sops binary; "sops" (on PATH) when empty.
 	Sops string
 }
@@ -320,6 +324,8 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 			return // a SOPS file where .sops.yaml says SOPS files don't go
 		case IsEnv(f):
 			c.Detail = provider.DetailPlainEnv
+		case IsSpring(f):
+			c.Detail = "spring · " + springFormat(f)
 		default:
 			return
 		}
@@ -357,6 +363,9 @@ func (p *Provider) Objects(_ context.Context, c provider.Container, t provider.O
 		return nil, err
 	}
 	meta, isSops := parseMeta(c.ID, b)
+	if !isSops && IsSpring(c.ID) {
+		return p.springObjects(c, b)
+	}
 	keys, err := parseKeys(c.ID, b)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", c.Name, err)
@@ -394,6 +403,9 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 		file = filePath(o.Container)
 	}
 	if _, isSops := readMeta(file); !isSops {
+		if IsSpring(file) {
+			return springValue(file, o.Name)
+		}
 		return plainValue(file, o.Name)
 	}
 	if !ok {
@@ -441,6 +453,12 @@ func (p *Provider) File(c provider.Container, o *provider.Object) (provider.File
 		f.Sops = p.s.Sops
 	}
 	if o == nil {
+		return f, nil
+	}
+	if f.Sops == "" && IsSpring(path) {
+		if k, err := springKeyNamed(path, o.Name); err == nil {
+			f.Line = k.line
+		}
 		return f, nil
 	}
 	b, err := os.ReadFile(path)
@@ -594,8 +612,9 @@ func normalizeRemote(remote string) (string, string) {
 
 // lazysecretsFile is a repo's own .lazysecrets.yaml.
 type lazysecretsFile struct {
-	Include []string `yaml:"include"`
-	Exclude []string `yaml:"exclude"`
+	Include []string       `yaml:"include"`
+	Exclude []string       `yaml:"exclude"`
+	Spring  SpringPatterns `yaml:"spring"`
 	Sharing struct {
 		// Key is the link to the secret that encrypts the repo's
 		// shared env files (package share).

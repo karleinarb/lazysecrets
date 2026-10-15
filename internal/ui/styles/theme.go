@@ -42,6 +42,7 @@ var Roles = map[string]string{
 	"azureColor":                      "Azure sources and vaults",
 	"databricksColor":                 "Databricks workspaces and scopes",
 	"repoColor":                       "repos and their secret files (SOPS)",
+	"springColor":                     "Spring Boot config files",
 }
 
 // FromTheme returns the default styles with the theme's roles applied, and
@@ -99,6 +100,8 @@ func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 			st.KindDatabricks = v.fg(lipgloss.NewStyle())
 		case "repoColor":
 			st.KindRepo = v.fg(lipgloss.NewStyle())
+		case "springColor":
+			st.Spring = v.fg(lipgloss.NewStyle())
 		}
 	}
 	return st, fg, nil

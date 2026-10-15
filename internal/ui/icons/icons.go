@@ -11,6 +11,7 @@ type Set struct {
 	Repo       string
 	Encrypted  string // an encrypted file (SOPS)
 	PlainFile  string // a plain text secrets file (.env)
+	Spring     string // a Spring Boot config file
 	Note       string // has a note (lazysecrets list)
 }
 
@@ -25,6 +26,7 @@ var NerdFont = Set{
 	Repo:       "\U000F02A2", // md-git
 	Encrypted:  "\U000F033E", // md-lock
 	PlainFile:  "\U000F0214", // md-file
+	Spring:     "\U000F032A", // md-leaf
 	Note:       "\U000F09ED",
 }
 

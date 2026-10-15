@@ -53,7 +53,7 @@ match case exactly.
 | `Y` | copy the reference (`@Microsoft.KeyVault(...)`, key/certificate URL, `{{secrets/scope/key}}`) |
 | `v` | versions of the selected item (Azure); `space`/`y`/`Y` then act on that version; `esc`, `⌫` or `v` to go back |
 | `o` | open the selected item in the browser (over SSH: copy the link) |
-| `e` | open the selected SOPS or `.env` file, or a secret's file at its line ([how](repos.md#opening-files)) |
+| `e` | open the selected SOPS, `.env` or Spring file, or a secret's file at its line ([how](repos.md#opening-files)) |
 | `s` / `S` | copy a [link](sharing.md) to the selected item / share menu (also env files, [encrypted](sharing.md#sharing-env-files)) |
 | `ctrl+o` | open a link or reference (or just paste one) |
 | `x` | [custom commands](custom-commands.md) |
