@@ -237,6 +237,25 @@ func TestDecrypt(t *testing.T) {
 		t.Errorf("from a link: %q %v", v.Reveal(), err)
 	}
 
+	// A dotenv file's export lines: sops keeps export in the key.
+	os.WriteFile(plain, []byte("export TOKEN=s3cret\n"), 0o600)
+	enc, err = exec.Command("sops", "encrypt", "--age", recipient, "--input-type", "dotenv", "--output-type", "dotenv", plain).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	envFile := filepath.Join(root, "prod.env")
+	os.WriteFile(envFile, enc, 0o600)
+	envC := provider.Container{Source: srcs[0], ID: envFile, Name: "prod.env"}
+	envKeys, _ := p.Objects(ctx, envC, provider.TypeSecret)
+	if len(envKeys) != 1 {
+		t.Fatalf("env keys: %v", envKeys)
+	}
+	for _, o := range []provider.Object{envKeys[0], {Container: provider.Container{Source: srcs[0], Name: "prod.env"}, Name: "TOKEN"}} {
+		if v, err := p.Value(ctx, o); err != nil || v.Reveal() != "s3cret" {
+			t.Errorf("export line (link: %t): %q %v", o.ID == "", v.Reveal(), err)
+		}
+	}
+
 	// Without the key: sops' own error.
 	t.Setenv("SOPS_AGE_KEY_FILE", filepath.Join(dir, "missing.txt"))
 	if _, err := p.Value(ctx, keys[0]); err == nil || !strings.Contains(err.Error(), "no identity matched any of the recipients") {
@@ -554,15 +573,22 @@ func TestKeyNamesEscaped(t *testing.T) {
 	var got []string
 	for _, k := range keys {
 		got = append(got, k.name+" "+k.extract)
-		if e := extractFor("s.yaml", k.name); e != k.extract {
-			t.Errorf("extractFor(%q) = %s, want %s", k.name, e, k.extract)
-		}
 	}
 	want := `app\.name ["app.name"]|db.password ["db"]["password"]|list[0] ["list"][0]|list[1] ["list"][1]|odd\[1\] ["odd[1]"]`
 	if strings.Join(got, "|") != want {
 		t.Errorf("keys = %s\nwant   %s", strings.Join(got, "|"), want)
 	}
-	if e := extractFor(".env", "spring.url"); e != `["spring.url"]` {
-		t.Errorf("dotenv: %s", e)
+
+	keys, err = parseKeys(".env", []byte("spring.url=a\nexport TOKEN=b\nSPACED = c\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = nil
+	for _, k := range keys {
+		got = append(got, k.name+" "+k.extract)
+	}
+	want = `spring.url ["spring.url"]|TOKEN ["export TOKEN"]|SPACED ["SPACED "]`
+	if strings.Join(got, "|") != want {
+		t.Errorf("dotenv keys = %s\nwant   %s", strings.Join(got, "|"), want)
 	}
 }

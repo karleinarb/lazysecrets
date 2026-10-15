@@ -392,10 +392,15 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	file, extract, ok := strings.Cut(o.ID, "\x00")
 	if !ok { // made from a link: the repo's root, the file's path, the key
 		file = filePath(o.Container)
-		extract = extractFor(file, o.Name)
 	}
 	if _, isSops := readMeta(file); !isSops {
 		return plainValue(file, o.Name)
+	}
+	if !ok {
+		var err error
+		if extract, err = extractOf(file, o.Name); err != nil {
+			return provider.SecretValue{}, err
+		}
 	}
 	cmd := exec.CommandContext(ctx, p.s.Sops, "decrypt", "--extract", extract, file)
 	cmd.Dir = filepath.Dir(file) // sops looks for .sops.yaml from here
@@ -1045,7 +1050,8 @@ func parseKeys(file string, b []byte) ([]key, error) {
 			if !ok || strings.HasPrefix(k, "sops_") {
 				continue
 			}
-			out = append(out, key{name: k, extract: quote(k), encrypted: strings.HasPrefix(v, "ENC["), line: i + 1})
+			sopsKey, _, _ := strings.Cut(line, "=") // sops keeps export and spaces in the key
+			out = append(out, key{name: k, extract: quote(sopsKey), encrypted: strings.HasPrefix(v, "ENC["), line: i + 1})
 		}
 		return out, nil
 	case "ini":
@@ -1110,48 +1116,23 @@ func escape(k string) string {
 	return strings.NewReplacer(`\`, `\\`, `.`, `\.`, `[`, `\[`, `]`, `\]`).Replace(k)
 }
 
-// extractFor rebuilds the extract path from a key name, for objects made
-// from a link (db.password, list[0], app\.name). A dotenv file is flat:
-// its names are the keys as they are.
-func extractFor(file, name string) string {
-	if formatOf(file) == "dotenv" {
-		return quote(name)
+// extractOf is the sops --extract path of the key named name, for objects
+// made from a link.
+func extractOf(file, name string) (string, error) {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return "", err
 	}
-	var b, part strings.Builder
-	flush := func() {
-		if part.Len() > 0 {
-			b.WriteString(quote(part.String()))
-			part.Reset()
+	keys, err := parseKeys(file, b)
+	if err != nil {
+		return "", err
+	}
+	for _, k := range keys {
+		if k.name == name {
+			return k.extract, nil
 		}
 	}
-	for i := 0; i < len(name); i++ {
-		switch c := name[i]; c {
-		case '\\':
-			if i+1 < len(name) {
-				i++
-			}
-			part.WriteByte(name[i])
-		case '.':
-			flush()
-		case '[':
-			end := strings.IndexByte(name[i:], ']')
-			if end < 0 || !digits(name[i+1:i+end]) {
-				part.WriteByte(c)
-				continue
-			}
-			flush()
-			b.WriteString(name[i : i+end+1])
-			i += end
-		default:
-			part.WriteByte(c)
-		}
-	}
-	flush()
-	return b.String()
-}
-
-func digits(s string) bool {
-	return s != "" && strings.Trim(s, "0123456789") == ""
+	return "", fmt.Errorf("%s isn't in %s", name, filepath.Base(file))
 }
 
 func absPath(p string) string {
