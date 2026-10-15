@@ -346,7 +346,8 @@ Flags:
 		if config.On(pc.Repos.Enabled) {
 			repos := repo.New(repo.Settings{
 				Dir: startDir, Paths: pc.Repos.Paths, Roots: valueOr(pc.Repos.Roots, repo.DefaultRoots),
-				Starred: starredRepos(st), Include: pc.Repos.Include, Exclude: pc.Repos.Exclude, Spring: pc.Repos.Spring,
+				Starred: starredRepos(st), Include: pc.Repos.Include, Exclude: pc.Repos.Exclude,
+				SecretPatterns: pc.Repos.SecretPatterns, Types: map[string]repo.FileType{"spring": pc.Repos.Spring},
 			})
 			// The repo it started in (shown on top as Repo) and the
 			// others, checked for secret files in the background like

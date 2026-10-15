@@ -154,8 +154,10 @@ type Repos struct {
 	// a repo's .sops.yaml creation_rules say where to look.
 	Include []string `yaml:"include"`
 	Exclude []string `yaml:"exclude"`
-	// Spring says which keys of Spring Boot config files are secrets.
-	Spring repo.SpringPatterns `yaml:"spring"`
+	// SecretPatterns say which keys of config files are secrets; Spring
+	// overrides them for Spring Boot's, list by list.
+	SecretPatterns repo.SecretPatterns `yaml:"secretPatterns"`
+	Spring         repo.FileType       `yaml:"spring"`
 }
 
 type Azure struct {
@@ -295,8 +297,9 @@ func (c Config) validate(path string) error {
 			return fmt.Errorf("%s: %s: %s is negative", path, name, d)
 		}
 	}
-	if err := c.Providers.Repos.Spring.Check(); err != nil {
-		return fmt.Errorf("%s: providers.repos.%w", path, err)
+	if err := errors.Join(c.Providers.Repos.SecretPatterns.Check("providers.repos.secretPatterns"),
+		c.Providers.Repos.Spring.SecretPatterns.Check("providers.repos.spring.secretPatterns")); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
 	}
 	for i, v := range c.Providers.Azure.Vaults {
 		if !strings.HasPrefix(v, "https://") {

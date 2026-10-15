@@ -20,91 +20,8 @@ import (
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
-// Spring Boot config files (application*.properties/.yml, bootstrap*) hold
-// all of an app's config, most of it not secret: of their keys, only those
-// named like a secret or with a value that looks like one are listed. The
-// patterns are configurable, and the file's details count the rest, so a
-// secret the patterns miss isn't hidden without a trace.
-
-// DefaultSpringKeys and DefaultSpringValues are the patterns used when
-// neither the config nor the repo's .lazysecrets.yaml sets them. The key
-// pattern is anchored at the end of the name: spring.datasource.password,
-// client-secret and checkoutKey, not the oauth2.*, keycloak.* and
-// token-uri keys every Spring app has. passord is Norwegian. The file's
-// details count the keys left out.
-var (
-	DefaultSpringKeys = []string{
-		`(?i)(pass(word|wd|phrase|ord)?|pwd|secret|token|key|credentials?|salt|connection-?string)$`,
-	}
-	DefaultSpringValues = []string{
-		`^ENC\(.+\)$`,            // Jasypt
-		`://[^/\s:@]*:[^/\s@]+@`, // a URL with a password: jdbc:postgresql://user:pass@host
-		`(?i)(AccountKey|SharedAccessKey|Password|Pwd)=`, // a connection string with one
-	}
-)
-
-// SpringPatterns are regexps matched against a Spring config key's name
-// and its value: a key is listed when either matches. A list that isn't
-// set is DefaultSpringKeys or DefaultSpringValues.
-type SpringPatterns struct {
-	Keys   *[]string `yaml:"keys"`
-	Values *[]string `yaml:"values"`
-}
-
-// Check says which pattern doesn't compile.
-func (p SpringPatterns) Check() error {
-	_, err := compileSpring(p)
-	return err
-}
-
-type springFilter struct{ keys, values []*regexp.Regexp }
-
-func compileSpring(p SpringPatterns) (springFilter, error) {
-	var f springFilter
-	var errs []error
-	add := func(field string, patterns *[]string, defaults []string, out *[]*regexp.Regexp) {
-		list := defaults
-		if patterns != nil {
-			list = *patterns
-		}
-		for i, s := range list {
-			re, err := regexp.Compile(s)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("spring.%s[%d]: %w", field, i, err))
-				continue
-			}
-			*out = append(*out, re)
-		}
-	}
-	add("keys", p.Keys, DefaultSpringKeys, &f.keys)
-	add("values", p.Values, DefaultSpringValues, &f.values)
-	return f, errors.Join(errs...)
-}
-
-func (f springFilter) secret(k springKey) bool {
-	return anyMatch(f.keys, k.key) || anyMatch(f.values, k.value)
-}
-
-// springFilterFor is the repo's patterns: its .lazysecrets.yaml's, else the
-// config's, each list on its own.
-func (p *Provider) springFilterFor(root string) (springFilter, error) {
-	f, err := readLazysecretsFile(root)
-	if err != nil {
-		return springFilter{}, err
-	}
-	patterns := p.s.Spring
-	if f.Spring.Keys != nil {
-		patterns.Keys = f.Spring.Keys
-	}
-	if f.Spring.Values != nil {
-		patterns.Values = f.Spring.Values
-	}
-	filter, err := compileSpring(patterns)
-	if err != nil && (f.Spring.Keys != nil || f.Spring.Values != nil) {
-		err = fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
-	}
-	return filter, err
-}
+// Spring Boot config files: application*.properties/.yml and bootstrap*,
+// their keys filtered by the secret patterns (patterns.go).
 
 // springName is application.yml, application-prod.properties, bootstrap.yaml
 // and the like; not applications.yaml (Argo CD's) or application.yml.example.
@@ -339,11 +256,11 @@ func (p *Provider) springHidden(root, file string) bool {
 	if err != nil {
 		return false
 	}
-	filter, err := p.springFilterFor(root)
+	filter, err := p.filterFor(root, "spring")
 	if err != nil {
 		return false
 	}
-	return !slices.ContainsFunc(keys, filter.secret)
+	return !slices.ContainsFunc(keys, func(k springKey) bool { return filter.secret(k.key, k.value) })
 }
 
 // springObjects lists the file's keys, those that don't look like secrets
@@ -353,7 +270,7 @@ func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Obj
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", c.Name, err)
 	}
-	filter, err := p.springFilterFor(c.Source.ID)
+	filter, err := p.filterFor(c.Source.ID, "spring")
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +286,7 @@ func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Obj
 		}
 		out = append(out, provider.Object{
 			Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.name, Name: k.name, Detail: detail,
-			Hidden: !filter.secret(k), Attrs: []provider.Attr{format, state},
+			Hidden: !filter.secret(k.key, k.value), Attrs: []provider.Attr{format, state},
 		})
 	}
 	return out, nil
@@ -403,13 +320,13 @@ func (p *Provider) springDetails(c provider.Container) (attrs []provider.Attr, p
 	if err != nil {
 		return []provider.Attr{{Label: "keys", Value: err.Error(), Warn: true}}, false
 	}
-	filter, err := p.springFilterFor(c.Source.ID)
+	filter, err := p.filterFor(c.Source.ID, "spring")
 	if err != nil {
 		return []provider.Attr{{Label: "keys", Value: err.Error(), Warn: true}}, false
 	}
 	secrets, jasypt := 0, 0
 	for _, k := range keys {
-		if filter.secret(k) {
+		if filter.secret(k.key, k.value) {
 			secrets++
 			plain = plain || k.plain()
 		}

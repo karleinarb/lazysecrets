@@ -98,7 +98,7 @@ other: y
 }
 
 func TestSpringDefaults(t *testing.T) {
-	f, err := compileSpring(SpringPatterns{})
+	f, err := (&Provider{}).filterFor(t.TempDir(), "spring")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestSpringDefaults(t *testing.T) {
 		"app.servicebus.connection":                                  "Endpoint=sb://x/;SharedAccessKeyName=a;SharedAccessKey=b",
 		"app.name":                                                   "ENC(abc==)",
 	} {
-		if !f.secret(springKey{key: key, value: value}) {
+		if !f.secret(key, value) {
 			t.Errorf("%s=%s isn't listed", key, value)
 		}
 	}
@@ -123,7 +123,7 @@ func TestSpringDefaults(t *testing.T) {
 		"server.port":                                                           "8080",
 		"spring.datasource.url":                                                 "jdbc:postgresql://db:5432/app",
 	} {
-		if f.secret(springKey{key: key, value: value}) {
+		if f.secret(key, value) {
 			t.Errorf("%s=%s is listed", key, value)
 		}
 	}
@@ -211,17 +211,17 @@ app:
 
 	// The config's patterns, and the repo's over them.
 	all := []string{".*"}
-	p = New(Settings{Dir: root, Spring: SpringPatterns{Keys: &all}})
+	p = New(Settings{Dir: root, SecretPatterns: SecretPatterns{Keys: &all}})
 	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(shown(keys)) != 5 {
 		t.Errorf("every key: %d", len(shown(keys)))
 	}
 	lazysecrets := filepath.Join(root, ".lazysecrets.yaml")
-	os.WriteFile(lazysecrets, []byte("spring:\n  keys: [\"url$\"]\n  values: []\n"), 0o644)
+	os.WriteFile(lazysecrets, []byte("spring:\n  secretPatterns:\n    keys: [\"url$\"]\n    values: []\n"), 0o644)
 	if keys, _ := p.Objects(ctx, yml, provider.TypeSecret); len(shown(keys)) != 1 || shown(keys)[0].Name != "spring.datasource.url" {
 		t.Errorf("repo's patterns: %v", keys)
 	}
-	os.WriteFile(lazysecrets, []byte("spring:\n  keys: [\"(\"]\n"), 0o644)
-	if _, err := p.Objects(ctx, yml, provider.TypeSecret); err == nil || !strings.Contains(err.Error(), ".lazysecrets.yaml: spring.keys[0]") {
+	os.WriteFile(lazysecrets, []byte("spring:\n  secretPatterns:\n    keys: [\"(\"]\n"), 0o644)
+	if _, err := p.Objects(ctx, yml, provider.TypeSecret); err == nil || !strings.Contains(err.Error(), ".lazysecrets.yaml: spring.secretPatterns.keys[0]") {
 		t.Errorf("bad pattern: %v", err)
 	}
 }

@@ -83,21 +83,28 @@ A file with none is hidden too, and a repo with only such files. `H` shows
 what's hidden, dimmed, in the panes and in Go to (`lazysecrets list
 --hidden` lists it); a pane's counter says how many it hides. A file's
 details count its hidden keys, and `e` opens it whole. A `${DB_PASSWORD}`
-value is marked as a reference: the secret is set elsewhere. A tracked file is marked in red only when a listed key has its
-value in plain text.
+value is marked as a reference: the secret is set elsewhere. A tracked
+file is marked in red only when a listed key has its value in plain text.
 
-Each list of regexps replaces its default; `keys: [".*"]` lists every key:
+The patterns are regexps, for all of a repo's config files and per type of
+file; each list replaces the one it falls back to, and `keys: [".*"]`
+lists every key:
 
 ```yaml
 providers:
   repos:
+    secretPatterns:                             # all config files
+      keys: ["(?i)(password|secret|token|key)$"]  # matched against the key's name
+      values: ["^ENC\\(.+\\)$"]                   # and against its value
     spring:
-      keys: ["(?i)(password|secret|token|key)$", "bearer$"]   # matched against the key's name
-      values: ["^ENC\\(.+\\)$"]                               # and against its value
+      secretPatterns:                           # Spring's: only what differs
+        keys: ["(?i)(password|secret)$", "bearer$"]
 ```
 
-A repo's `.lazysecrets.yaml` can set `spring` too, for everyone, and wins
-over the config, one list at a time.
+A repo's `.lazysecrets.yaml` can set them too, the same way
+(`secretPatterns:`, `spring: secretPatterns:`), for everyone. Each list
+comes from the first that sets it: the repo's for the type, the repo's,
+the config's for the type, the config's, the defaults.
 
 Keys are named as Spring names them, `spring.datasource.password`; in a
 file with several documents (`---`, or `#---` in `.properties`), a later

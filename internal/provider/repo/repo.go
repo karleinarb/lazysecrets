@@ -51,9 +51,11 @@ type Settings struct {
 	// Include and Exclude are globs relative to a repo's root (** matches
 	// any depth), for repos without their own .lazysecrets.yaml.
 	Include, Exclude []string
-	// Spring says which keys of Spring Boot config files are secrets, for
-	// repos whose .lazysecrets.yaml doesn't.
-	Spring SpringPatterns
+	// SecretPatterns say which keys of config files are secrets, Types
+	// per type of file (spring), for repos whose .lazysecrets.yaml
+	// doesn't.
+	SecretPatterns SecretPatterns
+	Types          map[string]FileType
 	// Sops is the sops binary; "sops" (on PATH) when empty.
 	Sops string
 }
@@ -631,14 +633,19 @@ func normalizeRemote(remote string) (string, string) {
 
 // lazysecretsFile is a repo's own .lazysecrets.yaml.
 type lazysecretsFile struct {
-	Include []string       `yaml:"include"`
-	Exclude []string       `yaml:"exclude"`
-	Spring  SpringPatterns `yaml:"spring"`
-	Sharing struct {
+	Include        []string       `yaml:"include"`
+	Exclude        []string       `yaml:"exclude"`
+	SecretPatterns SecretPatterns `yaml:"secretPatterns"`
+	Spring         FileType       `yaml:"spring"`
+	Sharing        struct {
 		// Key is the link to the secret that encrypts the repo's
 		// shared env files (package share).
 		Key string `yaml:"key"`
 	} `yaml:"sharing"`
+}
+
+func (f lazysecretsFile) types() map[string]FileType {
+	return map[string]FileType{"spring": f.Spring}
 }
 
 // ShareKey is the sharing.key of the repo's .lazysecrets.yaml, if any.
