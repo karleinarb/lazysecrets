@@ -134,10 +134,7 @@ func (m *Model) rebuildSources() {
 	}
 	for _, p := range m.providers {
 		kind, id := p.Kind(), p.ID()
-		account, _ := strings.CutPrefix(p.Label(), string(kind)+" · ")
-		if account == p.Label() {
-			account = ""
-		}
+		account := accountOf(provider.Source{Kind: kind, ProviderLabel: p.Label()})
 		r, done := m.sourceResults[id]
 		sources := r.sources
 		if !flat {
@@ -215,17 +212,6 @@ func (m Model) currentSource() (provider.Source, bool) {
 	return provider.Source{}, false
 }
 
-// starredSourcesFirst moves starred sources to the front, keeping the
-// order otherwise. It doesn't modify sources.
-func (m Model) starredSourcesFirst(sources []provider.Source) []provider.Source {
-	out := slices.Clone(sources)
-	rank := func(s provider.Source) int {
-		return boolRank(m.store.Node(sourceKey(s)).StarredFor(s.Provider))
-	}
-	slices.SortStableFunc(out, func(a, b provider.Source) int { return rank(a) - rank(b) })
-	return out
-}
-
 // starRank orders the Favourites row, then starred sources, then the rest.
 func starRank(mem *store.Store, r sourceRow) int {
 	switch {
@@ -237,13 +223,6 @@ func starRank(mem *store.Store, r sourceRow) int {
 		return 2
 	}
 	return 3
-}
-
-func boolRank(starred bool) int {
-	if starred {
-		return 0
-	}
-	return 1
 }
 
 // selectedSource is the source under the cursor; false on a header.

@@ -39,10 +39,9 @@ type contextHelp struct {
 	commands bool // custom commands apply here
 	account  bool // the fourth pane shows Fields (fields.go)
 	of       pane // what the fourth pane describes
-	// revealed, when set, says whether the selected value is shown, so
-	// the reveal key says just what it'll do: show or hide, the same
-	// width so the bar doesn't shift.
-	revealed *bool
+	// reveal, when set, is what the reveal key will do, "show" or "hide":
+	// the same width so the bar doesn't shift.
+	reveal string
 }
 
 func (c contextHelp) ShortHelp() []key.Binding {
@@ -70,8 +69,8 @@ func (c contextHelp) ShortHelp() []key.Binding {
 		b = append(b, k.Enter, k.Share, k.ShareMenu, k.Favourite, k.Open, k.Filter)
 	default:
 		reveal := k.Reveal
-		if c.revealed != nil {
-			reveal = key.NewBinding(key.WithKeys(k.Reveal.Keys()...), key.WithHelp(k.Reveal.Help().Key, map[bool]string{false: "show", true: "hide"}[*c.revealed]))
+		if c.reveal != "" {
+			reveal = key.NewBinding(key.WithKeys(k.Reveal.Keys()...), key.WithHelp(k.Reveal.Help().Key, c.reveal))
 		}
 		b = append(b, reveal, k.Copy, k.Share, k.ShareMenu, k.Versions, k.Favourite, k.Filter)
 	}
@@ -259,11 +258,7 @@ func hint(b key.Binding, desc string) keyHint { return keyHint{keys.Name(b), des
 
 // move is "↑/↓ move" for an up and a down binding.
 func move(up, down key.Binding) keyHint {
-	u, d := keys.Name(up), keys.Name(down)
-	if u == "" || d == "" {
-		return keyHint{u + d, "move"}
-	}
-	return keyHint{u + "/" + d, "move"}
+	return keyHint{joinKeys(up, down), "move"}
 }
 
 // withKey fills a hint's format with the binding's key ("· %s loads

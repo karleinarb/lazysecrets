@@ -2,13 +2,11 @@ package app
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"git.kebcloud.no/keb/lazysecrets/internal/browser"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
 	"git.kebcloud.no/keb/lazysecrets/internal/update"
 )
@@ -130,15 +128,7 @@ func (m *Model) showUpdate() {
 		run: func(m *Model) tea.Cmd { return m.install(r) }}}
 	if r.URL != "" {
 		opts = append(opts, option{key: "o", label: "Open the release page", run: func(m *Model) tea.Cmd {
-			switch err := m.openURL(r.URL); {
-			case errors.Is(err, browser.ErrRemote):
-				cmd := m.copyText("link to the release", r.URL, false)
-				m.flash.text += " (can't open a browser over SSH)"
-				return cmd
-			case err != nil:
-				m.flash = flash{text: "open: " + err.Error(), isErr: true}
-			}
-			return nil
+			return m.openPage("the release page", r.URL, func() {})
 		}})
 	}
 	m.showMenu("lazysecrets "+r.Tag, lines, opts)

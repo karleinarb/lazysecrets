@@ -306,3 +306,6 @@ func newTextInput(prompt string, width int) textinput.Model {
 	in.SetWidth(width)
 	return in
 }
+
+// pathInputWidth fits a link or a folder path in a prompt, in the window.
+func (m Model) pathInputWidth() int { return max(20, min(m.w-12, 64)) }

@@ -116,7 +116,7 @@ func (m Model) containerRender(withSource bool) func(styles.Styles, provider.Con
 		line = marks(sty, n, c.Source.Provider, m.recentIcon, m.now()) + line
 		if withSource {
 			src := c.Source.Name
-			if account, ok := strings.CutPrefix(c.Source.ProviderLabel, string(c.Source.Kind)+" · "); ok {
+			if account := accountOf(c.Source); account != "" {
 				src = account + " / " + src
 			}
 			line += sty.Muted.Render(" · " + src)
@@ -144,24 +144,36 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 	}
 }
 
-// starredContainersFirst moves starred vaults and scopes to the front,
-// keeping the order otherwise. It doesn't modify items, which may be cached.
-func (m Model) starredContainersFirst(items []provider.Container) []provider.Container {
+// starredFirst moves starred items to the front, keeping the order
+// otherwise. It doesn't modify items, which may be cached.
+func starredFirst[T any](items []T, starred func(T) bool) []T {
+	rank := func(x T) int {
+		if starred(x) {
+			return 0
+		}
+		return 1
+	}
 	out := slices.Clone(items)
-	slices.SortStableFunc(out, func(a, b provider.Container) int {
-		return boolRank(m.store.Node(storeKey(a)).StarredFor(a.Source.Provider)) - boolRank(m.store.Node(storeKey(b)).StarredFor(b.Source.Provider))
-	})
+	slices.SortStableFunc(out, func(a, b T) int { return rank(a) - rank(b) })
 	return out
 }
 
-// starredFirst moves starred objects to the front, keeping the order
-// otherwise. It doesn't modify items, which may be cached.
-func (m Model) starredFirst(items []provider.Object) []provider.Object {
-	out := slices.Clone(items)
-	slices.SortStableFunc(out, func(a, b provider.Object) int {
-		return boolRank(m.store.Node(objectKey(a)).StarredFor(a.Container.Source.Provider)) - boolRank(m.store.Node(objectKey(b)).StarredFor(b.Container.Source.Provider))
+func (m Model) starredSourcesFirst(sources []provider.Source) []provider.Source {
+	return starredFirst(sources, func(s provider.Source) bool {
+		return m.store.Node(sourceKey(s)).StarredFor(s.Provider)
 	})
-	return out
+}
+
+func (m Model) starredContainersFirst(items []provider.Container) []provider.Container {
+	return starredFirst(items, func(c provider.Container) bool {
+		return m.store.Node(storeKey(c)).StarredFor(c.Source.Provider)
+	})
+}
+
+func (m Model) starredObjectsFirst(items []provider.Object) []provider.Object {
+	return starredFirst(items, func(o provider.Object) bool {
+		return m.store.Node(objectKey(o)).StarredFor(o.Container.Source.Provider)
+	})
 }
 
 // showLinkedContainers lists the vaults opened from links.
@@ -199,7 +211,7 @@ func (m *Model) resortStarred() {
 		m.containers.SetItems(m.starredContainersFirst(m.containers.Items()))
 	}
 	if m.versionsOf == nil {
-		m.secrets.SetItems(m.starredFirst(m.secrets.Items()))
+		m.secrets.SetItems(m.starredObjectsFirst(m.secrets.Items()))
 	}
 }
 
@@ -245,7 +257,7 @@ func (m *Model) toggleFavourite() tea.Cmd {
 		c := o.Container
 		toggle := func(n *store.Node) { on = n.ToggleStar(c.Source.Provider) }
 		if err = m.remember(objectKey(o), o.Name, []string{c.Source.Name, c.Name}, c.Source, toggle); err == nil {
-			m.secrets.SetItems(m.starredFirst(m.secrets.Items()))
+			m.secrets.SetItems(m.starredObjectsFirst(m.secrets.Items()))
 		}
 	}
 	switch {

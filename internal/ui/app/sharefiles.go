@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -338,9 +337,7 @@ func (m *Model) openFailed(s share.Sealed, err error, whole bool) {
 // askShareDir asks where to save files from a repo that isn't here. It
 // stays until they're saved, saying why when they can't be.
 func (m *Model) askShareDir(msg shareOpenedMsg) tea.Cmd {
-	in := textinput.New()
-	in.Prompt = "folder: "
-	in.SetWidth(max(20, min(m.w-12, 64)))
+	in := newTextInput("folder: ", m.pathInputWidth())
 	dir := m.placeDir
 	if dir == "" {
 		dir, _ = os.Getwd()

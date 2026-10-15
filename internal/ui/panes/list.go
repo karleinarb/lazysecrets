@@ -329,17 +329,7 @@ func (l List[T]) View(st styles.Styles, focused bool, spin string) string {
 	ts := TitleStyle(st, focused)
 	title := ts.Render(l.Title)
 	if len(l.Tabs) > 1 {
-		for i, tab := range l.Tabs {
-			sep := " - "
-			if i == 0 {
-				sep = " "
-			}
-			if i == l.Tab {
-				title += ts.Render(sep) + ts.Underline(true).Render(tab)
-			} else {
-				title += ts.Render(sep) + st.Muted.Render(tab)
-			}
-		}
+		title += ts.Render(" ") + Tabs(st, ts, l.Tabs, l.Tab)
 	}
 	if q := l.input.Value(); q != "" && !l.filtering {
 		title += ts.Render(" /" + q)
@@ -370,26 +360,13 @@ func (l List[T]) View(st styles.Styles, focused bool, spin string) string {
 	default:
 		for i := l.offset; i < len(l.visible) && i < l.offset+rows; i++ {
 			line := l.item.Render(st, l.items[l.visible[i]], inner-1)
-			plain := ansi.Strip(line)
-			hits := l.highlight(i, plain)
+			line = " " + MarkMatches(line, l.highlight(i, ansi.Strip(line)), st.Match)
 			if i == l.cursor {
 				base := st.SelectedBlurred
 				if focused {
 					base = st.Selected
 				}
-				text := " " + line
-				if len(hits) > 0 {
-					for j := range hits {
-						hits[j]++ // leading space
-					}
-					text = lipgloss.StyleRanges(text, matchRanges(" "+plain, hits, st.Match)...)
-				}
-				line = Highlight(ansi.Truncate(text, inner, "…"), base, inner)
-			} else if len(hits) > 0 {
-				// Style just the matches, keeping the row's own colours.
-				line = " " + lipgloss.StyleRanges(line, matchRanges(plain, hits, st.Match)...)
-			} else {
-				line = " " + line
+				line = Highlight(ansi.Truncate(line, inner, "…"), base, inner)
 			}
 			body = append(body, line)
 		}

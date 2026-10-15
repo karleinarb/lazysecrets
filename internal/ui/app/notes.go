@@ -3,7 +3,6 @@ package app
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -58,11 +57,9 @@ func (m *Model) editNote() tea.Cmd {
 		c := o.Container
 		key, name, path, src = objectKey(o), o.Name, []string{c.Source.Name, c.Name}, c.Source
 	}
-	in := textinput.New()
-	in.Prompt = "note: "
+	in := newTextInput("note: ", 48)
 	in.Placeholder = "e.g. prod SQL admin"
 	in.CharLimit = 80
-	in.SetWidth(48)
 	in.SetValue(m.store.Node(key).Note)
 	in.CursorEnd()
 	m.prompt = &modal{

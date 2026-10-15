@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
-	"math"
 	"os"
 	"os/exec"
 	"strings"
@@ -725,7 +724,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.versionsOf != nil {
 				m.setVersions(msg.items)
 			} else {
-				m.secrets.SetItems(m.starredFirst(msg.items))
+				m.secrets.SetItems(m.starredObjectsFirst(msg.items))
 				cmds = append(cmds, m.refreshShown(before))
 			}
 		}
@@ -1257,7 +1256,7 @@ func (m *Model) showObjects(c provider.Container, key string) tea.Cmd {
 		m.secrets.SetLoading()
 		return m.loadObjects(c, m.objType, key)
 	}
-	m.secrets.SetItems(m.starredFirst(e.value))
+	m.secrets.SetItems(m.starredObjectsFirst(e.value))
 	m.secrets.Select(m.cache.cursor[key])
 	if e.fresh(m.now()) {
 		return nil
@@ -1676,12 +1675,8 @@ func (m *Model) copyText(label, text string, sensitive bool) tea.Cmd {
 
 // clipTick fires when the countdown's displayed second next changes.
 func (m *Model) clipTick() tea.Cmd {
-	wait := m.clipDeadline.Sub(m.now()) % time.Second
-	if wait <= 0 {
-		wait = time.Second
-	}
 	token := m.clipToken
-	return tea.Tick(wait, func(time.Time) tea.Msg { return clipTickMsg{token: token} })
+	return tea.Tick(untilNextSecond(m.clipDeadline, m.now()), func(time.Time) tea.Msg { return clipTickMsg{token: token} })
 }
 
 func (m *Model) cancelClipClear() {
@@ -1788,13 +1783,15 @@ func (m Model) footerView() string {
 	} else if l != nil && l.Filtering() {
 		help = m.helpBar(keys.FilterHelp{Map: m.keys}.ShortHelp(), 2)
 	} else {
-		revealed := m.detail.State() == panes.ValueShown
-		help = m.helpBar(contextHelp{k: m.keys, focus: m.focus, of: m.detailOf(), commands: len(m.commandsHere()) > 0, account: m.fields.Shown(), revealed: &revealed}.ShortHelp(), 2)
+		reveal := "show"
+		if m.detail.State() == panes.ValueShown {
+			reveal = "hide"
+		}
+		help = m.helpBar(contextHelp{k: m.keys, focus: m.focus, of: m.detailOf(), commands: len(m.commandsHere()) > 0, account: m.fields.Shown(), reveal: reveal}.ShortHelp(), 2)
 	}
 	var lines []string
 	if !m.clipDeadline.IsZero() {
-		left := max(0, int(math.Ceil(m.clipDeadline.Sub(m.now()).Seconds())))
-		lines = append(lines, m.flashLine(done(fmt.Sprintf("copied %s · clipboard clears in %ds", m.clipLabel, left))))
+		lines = append(lines, m.flashLine(done(fmt.Sprintf("copied %s · clipboard clears in %ds", m.clipLabel, secondsLeft(m.clipDeadline, m.now())))))
 	}
 	if m.flash.text != "" {
 		lines = append(lines, m.flashLine(m.flash))

@@ -199,18 +199,7 @@ func (m *Model) jumpTo(r ref.Ref, n store.Node) tea.Cmd {
 		m.startNav(r, actGo, sourceRowKey(n.Account, n.Source))
 		return nil
 	}
-	var choices []choice
-	for _, p := range m.providers {
-		if p.Kind() != r.Kind {
-			continue
-		}
-		for _, src := range m.sourceResults[p.ID()].sources {
-			if src.ID == n.Source && n.Source != "" {
-				row := sourceRowKey(p.ID(), src.ID)
-				choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
-			}
-		}
-	}
+	choices := m.openWith(r.Kind, func(src provider.Source) bool { return src.ID == n.Source && n.Source != "" })
 	switch len(choices) {
 	case 0:
 		return m.openRef(r, actGo)

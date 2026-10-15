@@ -28,12 +28,22 @@ func (m *Model) startRevealTimer() tea.Cmd {
 
 // revealTickCmd fires when the displayed second next changes.
 func (m *Model) revealTickCmd() tea.Cmd {
-	wait := m.revealDeadline.Sub(m.now()) % time.Second
-	if wait <= 0 {
-		wait = time.Second
-	}
 	token := m.revealToken
-	return tea.Tick(wait, func(time.Time) tea.Msg { return revealTickMsg{token} })
+	return tea.Tick(untilNextSecond(m.revealDeadline, m.now()), func(time.Time) tea.Msg { return revealTickMsg{token} })
+}
+
+// untilNextSecond is how long until a countdown to deadline shows its
+// next whole second.
+func untilNextSecond(deadline, now time.Time) time.Duration {
+	if wait := deadline.Sub(now) % time.Second; wait > 0 {
+		return wait
+	}
+	return time.Second
+}
+
+// secondsLeft is a countdown to deadline, in whole seconds rounded up.
+func secondsLeft(deadline, now time.Time) int {
+	return max(0, int(math.Ceil(deadline.Sub(now).Seconds())))
 }
 
 func (m *Model) revealTick(msg revealTickMsg) tea.Cmd {
@@ -49,8 +59,7 @@ func (m *Model) revealTick(msg revealTickMsg) tea.Cmd {
 }
 
 func (m *Model) showHidesIn() {
-	left := max(0, int(math.Ceil(m.revealDeadline.Sub(m.now()).Seconds())))
-	m.detail.SetHidesIn(fmt.Sprintf("%ds", left))
+	m.detail.SetHidesIn(fmt.Sprintf("%ds", secondsLeft(m.revealDeadline, m.now())))
 }
 
 // hideValue hides the revealed value and stops its countdown.

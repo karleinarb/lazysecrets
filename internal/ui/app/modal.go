@@ -75,10 +75,8 @@ type modal struct {
 
 // showFilterMenu opens a menu with a filter input above the options.
 func (m *Model) showFilterMenu(title string, options []option) tea.Cmd {
-	in := textinput.New()
-	in.Prompt = "/"
+	in := newTextInput("/", 40)
 	in.Placeholder = "type to filter"
-	in.SetWidth(40)
 	m.prompt = &modal{title: title, options: options, all: options, filter: &in}
 	m.prompt.move(0)
 	m.flash = flash{}

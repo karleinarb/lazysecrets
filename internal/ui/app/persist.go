@@ -29,41 +29,43 @@ type persistTickMsg struct{}
 
 type persistedMsg struct{ err error }
 
-// keepCached reports whether a cache key's account still exists and
-// isn't a repo: every key starts with the provider ID.
-func (m *Model) keepCached(key string) bool { return m.keepProvider(cachefile.ProviderOf(key)) }
-
-func (m *Model) keepProvider(id string) bool { return cachefile.Keep(m.providers)(id) }
+// keepers report whether a provider ID, or a cache key's, is an account
+// that still exists and isn't a repo.
+func (m *Model) keepers() (keep, keepKey func(string) bool) {
+	keep = cachefile.Keep(m.providers)
+	return keep, func(key string) bool { return keep(cachefile.ProviderOf(key)) }
+}
 
 // loadCacheFile fills the cache from the file, leaving out what's too
 // old or belongs to accounts that aren't signed in any more.
 func (m *Model) loadCacheFile() {
 	f := cachefile.Read(m.cachePath)
+	keep, keepKey := m.keepers()
 	now := m.now()
 	recent := func(at time.Time) bool { return now.Sub(at) < cachefile.MaxAge }
 	for id, e := range f.Sources {
-		if m.keepProvider(id) && recent(e.At) {
+		if keep(id) && recent(e.At) {
 			m.sourceResults[id] = sourcesMsg{gen: m.sourcesGen, provider: id, sources: e.Value}
 			m.sourcesAt[id] = e.At
 		}
 	}
 	for k, e := range f.Containers {
-		if m.keepCached(k) && recent(e.At) {
+		if keepKey(k) && recent(e.At) {
 			m.cache.containers[k] = entry[[]provider.Container]{e.Value, e.At}
 		}
 	}
 	for k, e := range f.Objects {
-		if m.keepCached(k) && recent(e.At) {
+		if keepKey(k) && recent(e.At) {
 			m.cache.objects[k] = entry[[]provider.Object]{e.Value, e.At}
 		}
 	}
 	for k, e := range f.Details {
-		if m.keepCached(k) && recent(e.At) {
+		if keepKey(k) && recent(e.At) {
 			m.cache.details[k] = entry[provider.Object]{e.Value, e.At}
 		}
 	}
 	for k, v := range f.Cursor {
-		if m.keepCached(k) {
+		if keepKey(k) {
 			m.cache.cursor[k] = v
 		}
 	}
@@ -72,29 +74,30 @@ func (m *Model) loadCacheFile() {
 // cacheSnapshot is the cache as the file holds it.
 func (m *Model) cacheSnapshot() cachefile.File {
 	f := cachefile.New()
+	keep, keepKey := m.keepers()
 	f.Dropped, m.cacheDropped = m.cacheDropped, nil
 	for id, r := range m.sourceResults {
-		if r.err == nil && m.keepProvider(id) {
+		if r.err == nil && keep(id) {
 			f.Sources[id] = cachefile.Stamped[[]provider.Source]{At: m.sourcesAt[id], Value: r.sources}
 		}
 	}
 	for k, e := range m.cache.containers {
-		if m.keepCached(k) {
+		if keepKey(k) {
 			f.Containers[k] = cachefile.Stamped[[]provider.Container]{At: e.at, Value: e.value}
 		}
 	}
 	for k, e := range m.cache.objects {
-		if m.keepCached(k) {
+		if keepKey(k) {
 			f.Objects[k] = cachefile.Stamped[[]provider.Object]{At: e.at, Value: e.value}
 		}
 	}
 	for k, e := range m.cache.details {
-		if m.keepCached(k) {
+		if keepKey(k) {
 			f.Details[k] = cachefile.Stamped[provider.Object]{At: e.at, Value: e.value}
 		}
 	}
 	for k, v := range m.cache.cursor {
-		if m.keepCached(k) {
+		if keepKey(k) {
 			f.Cursor[k] = v
 		}
 	}

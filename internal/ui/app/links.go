@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
@@ -210,18 +209,7 @@ const defaultResolveTimeout = 30 * time.Second
 // openSource goes to a subscription or workspace, asking which account
 // when several list it. Sources are loaded already, so it needs no lookup.
 func (m *Model) openSource(r ref.Ref) {
-	var choices []choice
-	for _, p := range m.providers {
-		if p.Kind() != r.Kind {
-			continue
-		}
-		for _, src := range m.sourceResults[p.ID()].sources {
-			if sourceMatches(r, src) {
-				row := sourceRowKey(p.ID(), src.ID)
-				choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
-			}
-		}
-	}
+	choices := m.openWith(r.Kind, func(src provider.Source) bool { return sourceMatches(r, src) })
 	if row, ok := preferredRow(r, choices); ok {
 		choices = []choice{{sourceRow: row}}
 	}
@@ -241,6 +229,24 @@ func (m *Model) openSource(r ref.Ref) {
 		}
 		m.showMenu("Several accounts can see "+describeRef(r), nil, opts)
 	}
+}
+
+// openWith offers each loaded source of kind that matches, one per
+// account that lists it.
+func (m Model) openWith(kind provider.Kind, matches func(provider.Source) bool) []choice {
+	var choices []choice
+	for _, p := range m.providers {
+		if p.Kind() != kind {
+			continue
+		}
+		for _, src := range m.sourceResults[p.ID()].sources {
+			if matches(src) {
+				row := sourceRowKey(p.ID(), src.ID)
+				choices = append(choices, choice{label: "Open with " + m.sourceLabel(row), sourceRow: row})
+			}
+		}
+	}
+	return choices
 }
 
 // refLabel draws what a link points at like the favourites list: the
@@ -831,10 +837,8 @@ func (m *Model) shareObject(o provider.Object, k string) tea.Cmd {
 }
 
 func (m *Model) startOpenPrompt() tea.Cmd {
-	in := textinput.New()
-	in.Prompt = "open: "
+	in := newTextInput("open: ", m.pathInputWidth())
 	in.Placeholder = "lazysecrets:// link, Key Vault URL or reference"
-	in.SetWidth(max(20, min(m.w-12, 64)))
 	m.prompt = &modal{
 		title: "Open a link", input: &in,
 		lines:  []string{m.st.Muted.Render("lazysecrets:// link, Key Vault URL or reference")},

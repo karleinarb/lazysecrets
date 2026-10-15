@@ -188,20 +188,31 @@ func carryStyle(lines []string) []string {
 	return lines
 }
 
+var valueIndent = strings.Repeat(" ", 12)
+
+// fieldLabel starts a detail line: the label, padded so values line up
+// at valueIndent.
+func fieldLabel(st styles.Styles, label string) string {
+	return " " + st.Label.Render(fmt.Sprintf("%-10s", label)) + " "
+}
+
 // lines renders the body, wrapped to the pane width.
 func (d Detail) lines(st styles.Styles) []string {
 	inner := max(1, d.w-3)
 	var out []string
 	field := func(label, value string) {
-		prefix := " " + st.Label.Render(fmt.Sprintf("%-10s", label)) + " "
-		indent := strings.Repeat(" ", 12)
 		wrapped := carryStyle(strings.Split(ansi.Hardwrap(value, max(1, inner-11), true), "\n"))
-		out = append(out, prefix+wrapped[0])
+		out = append(out, fieldLabel(st, label)+wrapped[0])
 		for _, w := range wrapped[1:] {
-			out = append(out, indent+w)
+			out = append(out, valueIndent+w)
 		}
 	}
 	muted := st.Muted.Render
+	note := func() {
+		if d.note != "" {
+			field("note", st.Favourite.Render(d.note))
+		}
+	}
 
 	if d.container == nil {
 		return []string{muted(" Select a vault or scope to browse its secrets.")}
@@ -211,30 +222,27 @@ func (d Detail) lines(st styles.Styles) []string {
 	if containerLabel == "" {
 		containerLabel = "vault"
 	}
+	source := d.Icons.Prefix(c.Source.Kind) + cmp.Or(c.Source.ProviderLabel, string(c.Source.Kind)) + " / " + c.Source.Name
 
 	if d.secret == nil {
 		field(containerLabel, c.Name)
-		if d.note != "" {
-			field("note", st.Favourite.Render(d.note))
-		}
+		note()
 		if c.Detail != "" {
 			field("", muted(c.Detail))
 		}
-		field("source", d.Icons.Prefix(c.Source.Kind)+cmp.Or(c.Source.ProviderLabel, string(c.Source.Kind))+" / "+c.Source.Name)
+		field("source", source)
 		out = append(out, "", muted(" Select a secret to see its details."))
 		return out
 	}
 
 	s := *d.secret
 	field("name", s.Name)
-	if d.note != "" {
-		field("note", st.Favourite.Render(d.note))
-	}
+	note()
 	field(containerLabel, c.Name)
 	if c.Source.Kind != provider.KindAzure && c.Detail != "" {
 		field("", muted(c.Detail))
 	}
-	field("source", d.Icons.Prefix(c.Source.Kind)+cmp.Or(c.Source.ProviderLabel, string(c.Source.Kind))+" / "+c.Source.Name)
+	field("source", source)
 	if s.Version != "" {
 		field("version", s.Version)
 	}
@@ -298,14 +306,12 @@ func (d Detail) lines(st styles.Styles) []string {
 	case provider.TypeCertificate:
 		label, hidden, reveal = "cert", "", "show the certificate"
 	}
-	indent := strings.Repeat(" ", 12)
-
 	out = append(out, "")
 	switch d.state {
 	case ValueHidden:
 		if hidden != "" {
 			field(label, hidden)
-			out = append(out, indent+hints(reveal))
+			out = append(out, valueIndent+hints(reveal))
 		} else {
 			field(label, hints(reveal))
 		}
@@ -322,9 +328,9 @@ func (d Detail) lines(st styles.Styles) []string {
 			for j, w := range strings.Split(ansi.Wrap(text, max(1, inner-11-len(lead)), ""), "\n") {
 				w = lead + w
 				if i == 0 && j == 0 {
-					out = append(out, " "+st.Label.Render(fmt.Sprintf("%-10s", label))+" "+st.Error.Render(w))
+					out = append(out, fieldLabel(st, label)+st.Error.Render(w))
 				} else {
-					out = append(out, strings.Repeat(" ", 12)+st.Error.Render(w))
+					out = append(out, valueIndent+st.Error.Render(w))
 				}
 			}
 		}
@@ -335,10 +341,10 @@ func (d Detail) lines(st styles.Styles) []string {
 		for _, line := range lines {
 			for _, w := range strings.Split(ansi.Hardwrap(line, max(1, inner-11), true), "\n") {
 				if first {
-					out = append(out, " "+st.Label.Render(fmt.Sprintf("%-10s", label))+" "+st.Value.Render(w))
+					out = append(out, fieldLabel(st, label)+st.Value.Render(w))
 					first = false
 				} else {
-					out = append(out, indent+st.Value.Render(w))
+					out = append(out, valueIndent+st.Value.Render(w))
 				}
 			}
 		}
@@ -352,7 +358,7 @@ func (d Detail) lines(st styles.Styles) []string {
 		if d.hidesIn != "" {
 			more = append(more, "hides in "+d.hidesIn)
 		}
-		out = append(out, indent+hints("hide", more...))
+		out = append(out, valueIndent+hints("hide", more...))
 	}
 	return append(out, d.versionLines(st)...)
 }
@@ -373,7 +379,7 @@ func (d Detail) versionLines(st styles.Styles) []string {
 			head += muted(" · " + d.VersionsKey + " to browse")
 		}
 	}
-	out := []string{"", " " + st.Label.Render(fmt.Sprintf("%-10s", "versions")) + " " + head}
+	out := []string{"", fieldLabel(st, "versions") + head}
 	current := d.versions[0].Version
 	for i, v := range d.versions {
 		if i == maxVersionLines {

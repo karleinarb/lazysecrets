@@ -69,3 +69,20 @@ func TitleStyle(st styles.Styles, focused bool) lipgloss.Style {
 	}
 	return st.TitleBlurred
 }
+
+// Tabs draws tab names for a title in style ts, the current one
+// underlined and the rest muted.
+func Tabs(st styles.Styles, ts lipgloss.Style, names []string, current int) string {
+	var out string
+	for i, name := range names {
+		if i > 0 {
+			out += ts.Render(" - ")
+		}
+		if i == current {
+			out += ts.Underline(true).Render(name)
+		} else {
+			out += st.Muted.Render(name)
+		}
+	}
+	return out
+}

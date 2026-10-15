@@ -95,9 +95,7 @@ func (m *Model) showFavourites() tea.Cmd { return m.openGoTo(tabFavs, false) }
 func (m *Model) showRecent() tea.Cmd     { return m.openGoTo(tabRecent, false) }
 
 func (m *Model) openGoTo(tab int, typing bool) tea.Cmd {
-	in := textinput.New()
-	in.Prompt = "/"
-	in.SetWidth(searchWidth(m.w) - 6) // as wide as the popup
+	in := newTextInput("/", searchWidth(m.w)-6) // as wide as the popup
 	v := &searchView{input: in, tab: tab, results: true}
 	v.favs, v.recent = m.storeEntries()
 	m.search = v
@@ -616,13 +614,7 @@ func (m Model) loadHint() string {
 		}
 		return m.st.Warning.Render("⚠ not loaded" + withKey(m.loadKey(), " · %s loads "+name))
 	}
-	loaded := 0
-	for _, c := range e.value {
-		key := cachefile.ObjectsKey(c, provider.TypeSecret)
-		if _, ok := m.cache.objects[key]; ok || m.crawl.failed[key] {
-			loaded++
-		}
-	}
+	loaded, _ := m.vaultsLoaded(e.value)
 	if loaded == len(e.value) {
 		return ""
 	}
@@ -770,7 +762,7 @@ func (m Model) searchViewBox() string {
 				body = append(body, " "+m.st.Error.Render(l))
 			}
 		}
-		body = append(body, "", " "+m.goToTabs(ts))
+		body = append(body, "", " "+panes.Tabs(m.st, ts, tabNames[:], m.search.tab))
 	}
 	body = append(body, " "+v.input.View(), "")
 	for _, l := range strings.Split(lists, "\n") {
@@ -803,7 +795,7 @@ func (m Model) searchViewBox() string {
 	// Tabs in the title, the current one underlined, like the panes; a
 	// picker has its own title, and the tabs over the input.
 	if v.picker == nil {
-		head := ts.Render(goToTitle+" ") + m.goToTabs(ts)
+		head := ts.Render(goToTitle+" ") + panes.Tabs(m.st, ts, tabNames[:], m.search.tab)
 		return panes.Box(m.st, head, foot, body, w, len(body)+2, focused)
 	}
 	// A picker: in its own border, under what it's for.
@@ -855,20 +847,4 @@ func pickable(o option) (ref.Ref, bool) {
 		return ref.Ref{}, false
 	}
 	return r, true
-}
-
-// goToTabs draws Go to's tabs, the current one underlined.
-func (m Model) goToTabs(ts lipgloss.Style) string {
-	var out string
-	for i, name := range tabNames {
-		if i > 0 {
-			out += ts.Render(" - ")
-		}
-		if i == m.search.tab {
-			out += ts.Underline(true).Render(name)
-		} else {
-			out += m.st.Muted.Render(name)
-		}
-	}
-	return out
 }

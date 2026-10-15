@@ -341,6 +341,19 @@ func (m *Model) handleCrawl(msg crawlMsg) tea.Cmd {
 	return cmd
 }
 
+// vaultsLoaded counts the vaults whose secrets are cached or can't be
+// read, and says whether any are loading.
+func (m *Model) vaultsLoaded(vaults []provider.Container) (loaded int, loading bool) {
+	for _, c := range vaults {
+		key := cachefile.ObjectsKey(c, provider.TypeSecret)
+		loading = loading || m.crawl.pending[key]
+		if _, ok := m.cache.objects[key]; ok || m.crawl.failed[key] {
+			loaded++
+		}
+	}
+	return loaded, loading
+}
+
 // sourceMark shows how much of a subscription or workspace is loaded:
 // ○ nothing, ◐ some vaults, ● every vault, ◌ loading, ✗ unreadable.
 func (m *Model) sourceMark(row string) string {
@@ -354,14 +367,7 @@ func (m *Model) sourceMark(row string) string {
 	if !ok {
 		return m.st.Muted.Render("○")
 	}
-	loaded, loading := 0, false
-	for _, c := range e.value {
-		key := cachefile.ObjectsKey(c, provider.TypeSecret)
-		loading = loading || m.crawl.pending[key]
-		if _, ok := m.cache.objects[key]; ok || m.crawl.failed[key] {
-			loaded++
-		}
-	}
+	loaded, loading := m.vaultsLoaded(e.value)
 	switch {
 	case loading:
 		return m.st.Muted.Render("◌")
