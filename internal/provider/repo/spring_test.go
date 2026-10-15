@@ -30,7 +30,7 @@ func TestIsSpring(t *testing.T) {
 	}
 }
 
-func springNames(keys []springKey) map[string]string {
+func springNames(keys []configKey) map[string]string {
 	out := map[string]string{}
 	for _, k := range keys {
 		out[k.name] = k.value

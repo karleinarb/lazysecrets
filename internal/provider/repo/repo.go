@@ -1,7 +1,7 @@
 // Package repo browses the encrypted secret files in git repositories:
 // a repo is a source, its secret files the containers (vault level), and
 // their keys the secrets. Secret files are SOPS files, plain env files and
-// Spring Boot config (spring.go).
+// config files: Spring Boot's and Docker Compose's (configfile.go).
 //
 // Listing never decrypts: SOPS encrypts values only, so a file's keys and
 // metadata are read directly. A value is decrypted when it's revealed or
@@ -336,9 +336,10 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 		case isEnvNamed(f):
 			c.Detail = provider.DetailPlainEnv
 			c.Hidden = isExample(f)
-		case IsSpring(f):
-			c.Detail = "spring · " + springFormat(f)
-			c.Hidden = p.springHidden(r.root, path)
+		case isConfig(f):
+			t, _ := configTypeOf(f)
+			c.Detail = t.detail(f)
+			c.Hidden = isExample(f) || p.configHidden(t, r.root, path)
 		default:
 			return
 		}
@@ -376,8 +377,8 @@ func (p *Provider) Objects(_ context.Context, c provider.Container, t provider.O
 		return nil, err
 	}
 	meta, isSops := parseMeta(c.ID, b)
-	if !isSops && IsSpring(c.ID) {
-		return p.springObjects(c, b)
+	if t, ok := configTypeOf(c.ID); ok && !isSops {
+		return p.configObjects(t, c, b)
 	}
 	keys, err := parseKeys(c.ID, b)
 	if err != nil {
@@ -421,14 +422,14 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	}
 	if _, isSops := readMeta(file); !isSops {
 		read := plainValue
-		if IsSpring(file) {
-			read = springValue
+		if t, ok := configTypeOf(file); ok {
+			read = t.value
 		}
 		v, err := read(file, o.Name)
 		if err != nil {
 			return v, err
 		}
-		return jasyptValue(file, v)
+		return jasyptValue(file, o.Name, v)
 	}
 	if !ok {
 		var err error
@@ -477,8 +478,8 @@ func (p *Provider) File(c provider.Container, o *provider.Object) (provider.File
 	if o == nil {
 		return f, nil
 	}
-	if f.Sops == "" && IsSpring(path) {
-		if k, err := springKeyNamed(path, o.Name); err == nil {
+	if t, ok := configTypeOf(path); ok && f.Sops == "" {
+		if k, err := t.keyNamed(path, o.Name); err == nil {
 			f.Line = k.line
 		}
 		return f, nil
@@ -638,6 +639,7 @@ type lazysecretsFile struct {
 	Exclude        []string       `yaml:"exclude"`
 	SecretPatterns SecretPatterns `yaml:"secretPatterns"`
 	Spring         FileType       `yaml:"spring"`
+	Compose        FileType       `yaml:"compose"`
 	Sharing        struct {
 		// Key is the link to the secret that encrypts the repo's
 		// shared env files (package share).
@@ -646,7 +648,7 @@ type lazysecretsFile struct {
 }
 
 func (f lazysecretsFile) types() map[string]FileType {
-	return map[string]FileType{"spring": f.Spring}
+	return map[string]FileType{"spring": f.Spring, "compose": f.Compose}
 }
 
 // ShareKey is the sharing.key of the repo's .lazysecrets.yaml, if any.

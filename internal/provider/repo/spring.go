@@ -5,19 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"go.yaml.in/yaml/v3"
-
-	"git.kebcloud.no/keb/lazysecrets/internal/jasypt"
-	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
 // Spring Boot config files: application*.properties/.yml and bootstrap*,
@@ -40,51 +35,42 @@ func springFormat(f string) string {
 	return "yaml"
 }
 
-type springKey struct {
-	key   string // spring.datasource.password
-	name  string // key, with (profile) after it in a later document
-	value string
-	line  int // 1-based
+var springType = configType{
+	name: "spring", is: IsSpring, format: springFormat, parse: parseSpring,
+	jasyptSetting: func(string) string { return "jasypt.encryptor.password" },
+	placeholder:   springPlaceholder,
 }
 
-// reference reports whether the value is only a placeholder, ${DB_PASSWORD}:
-// the secret is elsewhere. One with a default, ${DB_PASSWORD:hunter2}, has
-// the default in the file.
-func (k springKey) reference() bool {
-	return strings.HasPrefix(k.value, "${") && strings.HasSuffix(k.value, "}") &&
-		!strings.ContainsAny(k.value[2:len(k.value)-1], ":${}")
-}
+// springPlaceholderRe is Spring's ${name} or ${name:default}.
+var springPlaceholderRe = regexp.MustCompile(`^\$\{([^:}]+)(:([^}]*))?\}$`)
 
-func (k springKey) jasypt() bool {
-	return jasypt.Is(k.value)
-}
-
-// plain reports whether the file holds the value itself, readable.
-func (k springKey) plain() bool {
-	return k.value != "" && !k.reference() && !k.jasypt()
-}
-
-// readSpring lists a Spring config file's keys, every one, with values.
-func readSpring(file string) ([]springKey, error) {
-	b, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
+func springPlaceholder(v string) (name, def string, hasDef, ok bool) {
+	m := springPlaceholderRe.FindStringSubmatch(v)
+	if m == nil {
+		return "", "", false, false
 	}
-	return parseSpring(file, b)
+	return m[1], m[3], m[2] != "", true
 }
 
-func parseSpring(file string, b []byte) ([]springKey, error) {
+func parseSpring(file string, b []byte) ([]configKey, error) {
+	var keys []configKey
+	var err error
 	if springFormat(file) == "properties" {
-		return parseProperties(b), nil
+		keys = parseProperties(b)
+	} else {
+		keys, err = parseSpringYAML(b)
 	}
-	return parseSpringYAML(b)
+	for i := range keys {
+		keys[i].ref = reference(springPlaceholder, keys[i].value)
+	}
+	return keys, err
 }
 
 // springDocs names the keys of a multi-document file's later documents
 // after the profile they're for, so each name is one key:
 // spring.datasource.password (prod).
-func springDocs(docs [][]springKey) []springKey {
-	var out []springKey
+func springDocs(docs [][]configKey) []configKey {
+	var out []configKey
 	for i, doc := range docs {
 		suffix := ""
 		if i > 0 {
@@ -107,13 +93,13 @@ func springDocs(docs [][]springKey) []springKey {
 // not YAML until it's quoted.
 var mavenFiltered = regexp.MustCompile(`(?m)(:[ \t]+|^[ \t]*-[ \t]+)(@[^\n]*?)[ \t]*$`)
 
-func parseSpringYAML(b []byte) ([]springKey, error) {
+func parseSpringYAML(b []byte) ([]configKey, error) {
 	b = mavenFiltered.ReplaceAllFunc(b, func(m []byte) []byte {
 		sub := mavenFiltered.FindSubmatch(m)
 		return fmt.Appendf(nil, "%s'%s'", sub[1], bytes.ReplaceAll(sub[2], []byte("'"), []byte("''")))
 	})
 	dec := yaml.NewDecoder(bytes.NewReader(b))
-	var docs [][]springKey
+	var docs [][]configKey
 	for {
 		var doc yaml.Node
 		err := dec.Decode(&doc)
@@ -123,7 +109,7 @@ func parseSpringYAML(b []byte) ([]springKey, error) {
 		if err != nil {
 			return nil, err
 		}
-		var keys []springKey
+		var keys []configKey
 		if len(doc.Content) > 0 {
 			springWalk(doc.Content[0], "", &keys)
 		}
@@ -134,7 +120,7 @@ func parseSpringYAML(b []byte) ([]springKey, error) {
 
 // springWalk names keys the way Spring does: nested keys joined by dots,
 // list items by index (servers[0]).
-func springWalk(n *yaml.Node, name string, out *[]springKey) {
+func springWalk(n *yaml.Node, name string, out *[]configKey) {
 	switch n.Kind {
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(n.Content); i += 2 {
@@ -154,7 +140,7 @@ func springWalk(n *yaml.Node, name string, out *[]springKey) {
 		}
 	case yaml.ScalarNode:
 		if name != "" {
-			*out = append(*out, springKey{key: name, value: n.Value, line: n.Line})
+			*out = append(*out, configKey{key: name, value: n.Value, line: n.Line})
 		}
 	}
 }
@@ -162,10 +148,10 @@ func springWalk(n *yaml.Node, name string, out *[]springKey) {
 // parseProperties reads a Java .properties file: key=value, key: value or
 // key value, lines continued with a trailing backslash, # and ! comments,
 // and #--- between documents (Spring Boot 2.4+).
-func parseProperties(b []byte) []springKey {
+func parseProperties(b []byte) []configKey {
 	lines := strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n")
-	var docs [][]springKey
-	var doc []springKey
+	var docs [][]configKey
+	var doc []configKey
 	for i := 0; i < len(lines); i++ {
 		start := i + 1
 		line := strings.TrimLeftFunc(lines[i], unicode.IsSpace)
@@ -181,7 +167,7 @@ func parseProperties(b []byte) []springKey {
 			line = line[:len(line)-1] + strings.TrimLeftFunc(lines[i], unicode.IsSpace)
 		}
 		k, v := splitProperty(line)
-		doc = append(doc, springKey{key: unescapeProperty(k), value: unescapeProperty(v), line: start})
+		doc = append(doc, configKey{key: unescapeProperty(k), value: unescapeProperty(v), line: start})
 	}
 	return springDocs(append(docs, doc))
 }
@@ -247,95 +233,4 @@ func unescapeProperty(s string) string {
 		}
 	}
 	return b.String()
-}
-
-// springHidden reports whether a Spring file has no secret keys. One that
-// can't be read isn't hidden: its error is worth seeing.
-func (p *Provider) springHidden(root, file string) bool {
-	keys, err := readSpring(file)
-	if err != nil {
-		return false
-	}
-	filter, err := p.filterFor(root, "spring")
-	if err != nil {
-		return false
-	}
-	return !slices.ContainsFunc(keys, func(k springKey) bool { return filter.secret(k.key, k.value) })
-}
-
-// springObjects lists the file's keys, those that don't look like secrets
-// hidden.
-func (p *Provider) springObjects(c provider.Container, b []byte) ([]provider.Object, error) {
-	keys, err := parseSpring(c.ID, b)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", c.Name, err)
-	}
-	filter, err := p.filterFor(c.Source.ID, "spring")
-	if err != nil {
-		return nil, err
-	}
-	format := provider.Attr{Label: "format", Value: "spring " + springFormat(c.ID)}
-	var out []provider.Object
-	for _, k := range keys {
-		state, detail := provider.Attr{Label: "encrypted", Value: "no: plain text in the file"}, ""
-		switch {
-		case k.reference():
-			state, detail = provider.Attr{Label: "value", Value: "a reference: the secret is set elsewhere"}, "reference"
-		case k.jasypt():
-			state, detail = provider.Attr{Label: "encrypted", Value: "jasypt"}, "jasypt"
-		}
-		out = append(out, provider.Object{
-			Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.name, Name: k.name, Detail: detail,
-			Hidden: !filter.secret(k.key, k.value), Attrs: []provider.Attr{format, state},
-		})
-	}
-	return out, nil
-}
-
-func springValue(file, name string) (provider.SecretValue, error) {
-	k, err := springKeyNamed(file, name)
-	if err != nil {
-		return provider.SecretValue{}, err
-	}
-	return provider.NewSecretValue([]byte(k.value)), nil
-}
-
-func springKeyNamed(file, name string) (springKey, error) {
-	keys, err := readSpring(file)
-	if err != nil {
-		return springKey{}, err
-	}
-	for _, k := range keys {
-		if k.name == name {
-			return k, nil
-		}
-	}
-	return springKey{}, fmt.Errorf("%s isn't in %s", name, filepath.Base(file))
-}
-
-// springDetails says how many of the file's keys aren't listed, and
-// whether any listed one is in plain text.
-func (p *Provider) springDetails(c provider.Container) (attrs []provider.Attr, plain bool) {
-	keys, err := readSpring(c.ID)
-	if err != nil {
-		return []provider.Attr{{Label: "keys", Value: err.Error(), Warn: true}}, false
-	}
-	filter, err := p.filterFor(c.Source.ID, "spring")
-	if err != nil {
-		return []provider.Attr{{Label: "keys", Value: err.Error(), Warn: true}}, false
-	}
-	secrets, jasypt := 0, 0
-	for _, k := range keys {
-		if filter.secret(k.key, k.value) {
-			secrets++
-			plain = plain || k.plain()
-		}
-		if k.jasypt() {
-			jasypt++
-		}
-	}
-	return []provider.Attr{
-		{Label: "encryption", Value: jasyptShare(jasypt, len(keys))},
-		{Label: "hidden keys", Value: fmt.Sprintf("%d, not matched by the secret patterns", len(keys)-secrets)},
-	}, plain
 }

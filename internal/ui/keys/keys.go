@@ -103,7 +103,7 @@ func (m *Map) Actions() []Action {
 		a(Lists, "prevTab", &m.PrevTab, "prev tab", "lists", "Previous tab of the focused pane: Sources and Favourites in Sources; Secrets, Keys, Certs in Secrets."),
 		a(Lists, "nextTab", &m.NextTab, "next tab", "lists", "Next tab of the focused pane."),
 		a(Lists, "sourcesView", &m.SourcesView, "grouped/flat sources", "lists", "Switch the Sources pane between grouped by provider and a flat list."),
-		a(Lists, "toggleHidden", &m.ToggleHidden, "show/hide hidden", "lists", "Show or hide what's hidden: Spring config keys that don't look like secrets, and files and repos with only those. Shown, they're dimmed; Go to finds them too."),
+		a(Lists, "toggleHidden", &m.ToggleHidden, "show/hide hidden", "lists", "Show or hide what's hidden: Spring and compose keys that don't look like secrets, example files (.env.example), and files and repos with only those. Shown, they're dimmed; Go to finds them too."),
 		a(Lists, "star", &m.Favourite, "star", "lists", "Star or unstar the selected subscription, vault or secret, for the account showing it. Starred items get a ★ and sort first."),
 		a(Lists, "goTo", &m.Search, "search", "lists", "Go to anything: search every vault and secret loaded and jump to one. Again in Go to: only the source or group you're in, and back to all. On the left, the scope: All, an account (or Databricks, or Repos), or one source (○ ◐ ● for how much of it is loaded)."),
 		a(Lists, "favourites", &m.Favourites, "favourites", "lists", "Go to, on Favourites: everything you've starred, to search and jump to."),

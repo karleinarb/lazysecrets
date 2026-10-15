@@ -20,7 +20,7 @@ The rule: a letter in the lists, ctrl+ that letter where you type a filter
 | `[` / `]` | previous / next tab of the focused pane: Sources and Favourites in Sources; Secrets, Keys, Certs in Secrets |
 | `/` | filter the focused list by name or note ([how it matches](#searching)); `enter` keeps it, `esc` clears it. While typing: `ctrl+j`/`ctrl+k` move, `ctrl+y` copies, `ctrl+r` reveals, `ctrl+f` stars |
 | `` ` `` | switch the Sources pane between grouped by provider and a flat list; `enter`/`space` on a provider folds it |
-| `H` | show / hide what's hidden: [Spring keys](repos.md#spring-boot-config) that don't look secret, and files and repos with only those; shown dimmed |
+| `H` | show / hide what's hidden: [Spring and compose keys](repos.md#spring-boot-config) that don't look secret, example files, and files and repos with only those; shown dimmed |
 | `r` | refresh the focused pane |
 | `q`, `ctrl+c` | quit |
 
@@ -54,7 +54,7 @@ match case exactly.
 | `Y` | copy the reference (`@Microsoft.KeyVault(...)`, key/certificate URL, `{{secrets/scope/key}}`) |
 | `v` | versions of the selected item (Azure); `space`/`y`/`Y` then act on that version; `esc`, `⌫` or `v` to go back |
 | `o` | open the selected item in the browser (over SSH: copy the link) |
-| `e` | open the selected SOPS, `.env` or Spring file, or a secret's file at its line ([how](repos.md#opening-files)) |
+| `e` | open the selected SOPS, `.env`, Spring or compose file, or a secret's file at its line ([how](repos.md#opening-files)) |
 | `s` / `S` | copy a [link](sharing.md) to the selected item / share menu (also env files, [encrypted](sharing.md#sharing-env-files)) |
 | `ctrl+o` | open a link or reference (or just paste one) |
 | `x` | [custom commands](custom-commands.md) |

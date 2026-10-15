@@ -35,6 +35,7 @@ type Styles struct {
 	KindDatabricks lipgloss.Style
 	KindRepo       lipgloss.Style
 	Spring         lipgloss.Style // Spring Boot config files
+	Compose        lipgloss.Style // Docker Compose files
 
 	// themed marks the selection colours as set by the theme, so
 	// OnBackground leaves them.
@@ -72,6 +73,7 @@ func Default() Styles {
 		KindDatabricks: lipgloss.NewStyle().Foreground(lipgloss.Red),
 		KindRepo:       lipgloss.NewStyle().Foreground(lipgloss.Magenta),
 		Spring:         lipgloss.NewStyle().Foreground(lipgloss.Green),
+		Compose:        lipgloss.NewStyle().Foreground(lipgloss.Blue),
 	}
 }
 

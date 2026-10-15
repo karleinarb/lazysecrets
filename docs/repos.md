@@ -1,9 +1,9 @@
-# SOPS, .env and Spring files in git repos
+# SOPS, .env, Spring and compose files in git repos
 
 lazysecrets shows git repositories under **Repos**: their
 [SOPS](https://github.com/getsops/sops)-encrypted files (YAML, JSON,
-`.env`, INI), plain env files and [Spring Boot config](#spring-boot-config)
-as vaults, and the keys in them (`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
+`.env`, INI), plain env files, [Spring Boot config](#spring-boot-config)
+and [Docker Compose files](#docker-compose) as vaults, and the keys in them (`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
 escaped, `app\.name`, so it doesn't read as nesting.
 
 ## Which repos
@@ -47,7 +47,7 @@ Folders of dependencies and caches are never looked in, tracked or not:
 3. where the repo's `.sops.yaml` `creation_rules` say SOPS files go,
 4. the whole repo.
 
-`include`/`exclude` apply to env and Spring files too.
+`include`/`exclude` apply to env, Spring and compose files too.
 
 ```yaml
 providers:
@@ -100,10 +100,14 @@ providers:
     spring:
       secretPatterns:                           # Spring's: only what differs
         keys: ["(?i)(password|secret)$", "bearer$"]
+    compose:
+      secretPatterns:                           # and compose's
+        values: []
 ```
 
 A repo's `.lazysecrets.yaml` can set them too, the same way
-(`secretPatterns:`, `spring: secretPatterns:`), for everyone. Each list
+(`secretPatterns:`, `spring: secretPatterns:`, `compose:
+secretPatterns:`), for everyone. Each list
 comes from the first that sets it: the repo's for the type, the repo's,
 the config's for the type, the config's, the defaults.
 
@@ -112,6 +116,22 @@ file with several documents (`---`, or `#---` in `.properties`), a later
 document's keys get its profile, `spring.datasource.password (prod)`.
 Values Maven fills in at build time (`@project.version@`) are read as
 they are.
+
+## Docker Compose
+
+`compose.yaml`, `docker-compose.yml` and their variants
+(`docker-compose.test.yml`), tracked by git; `docker-compose.example.yml`
+and the like are hidden. Their secrets are the services' `environment`
+variables, as a map (`DB_PASSWORD: x`) or a list (`- DB_PASSWORD=x`),
+named `service.VAR` (`api.DB_PASSWORD`); a `<<: *anchor` shared between
+services is read too. The same [secret patterns](#spring-boot-config)
+pick them, the rest hidden, with `compose: secretPatterns:` for compose
+files' own.
+
+`${DB_PASSWORD}`, `$DB_PASSWORD` and `${DB_PASSWORD:?…}`, and a variable
+without a value (`DB_PASSWORD:`, `- DB_PASSWORD`), taken from where
+compose runs, are marked as references; `${DB_PASSWORD:-x}` has its
+default in the file.
 
 ## Decrypting
 
@@ -131,15 +151,17 @@ repo's history, or easily could be.
 
 ### Jasypt
 
-A value like `ENC(...)` in a plain `.env` or Spring file is
+A value like `ENC(...)` in a plain `.env`, Spring or compose file is
 [Jasypt](http://www.jasypt.org)'s, decrypted when it's revealed or copied
 with jasypt-spring-boot's default algorithm (3.0+:
 `PBEWITHHMACSHA512ANDAES_256`). The password is, as in Spring:
 
 1. `$JASYPT_ENCRYPTOR_PASSWORD`,
-2. the file's own: `jasypt.encryptor.password` in a Spring file,
-   `JASYPT_ENCRYPTOR_PASSWORD` in a `.env`; a `${VAR}` (or
-   `${VAR:default}`) in it is read from the environment.
+2. the file's own: `jasypt.encryptor.password` in a Spring file, the
+   service's `JASYPT_ENCRYPTOR_PASSWORD` in a compose file,
+   `JASYPT_ENCRYPTOR_PASSWORD` in a `.env`; a `${VAR}` in it (with a
+   default: `${VAR:default}` in Spring, `${VAR:-default}` elsewhere) is
+   read from the environment.
 
 Environment variables are lazysecrets' own: a link opened from the browser
 starts it without your shell's. A `.env` whose values are all Jasypt's

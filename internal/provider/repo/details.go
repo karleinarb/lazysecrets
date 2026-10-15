@@ -25,10 +25,10 @@ func (p *Provider) Details(ctx context.Context, c provider.Container) ([]provide
 	var out []provider.Attr
 	meta, isSops := readMeta(c.ID)
 	// A plain file's values are at risk in git, unless they're all Jasypt;
-	// a Spring file's only when one of its secrets is in plain text.
+	// a config file's only when one of its secrets is in plain text.
 	plain := !isSops
-	if !isSops && IsSpring(c.ID) {
-		out, plain = p.springDetails(c)
+	if t, ok := configTypeOf(c.ID); ok && !isSops {
+		out, plain = p.configDetails(t, c)
 	} else if isSops {
 		out = append(out, provider.Attr{Label: "encryption", Value: "sops · " + strings.Join(meta.methods, ", ")})
 		for i, k := range meta.recipients {

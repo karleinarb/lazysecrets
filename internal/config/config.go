@@ -155,9 +155,10 @@ type Repos struct {
 	Include []string `yaml:"include"`
 	Exclude []string `yaml:"exclude"`
 	// SecretPatterns say which keys of config files are secrets; Spring
-	// overrides them for Spring Boot's, list by list.
+	// and Compose override them for their files, list by list.
 	SecretPatterns repo.SecretPatterns `yaml:"secretPatterns"`
 	Spring         repo.FileType       `yaml:"spring"`
+	Compose        repo.FileType       `yaml:"compose"`
 }
 
 type Azure struct {
@@ -298,7 +299,8 @@ func (c Config) validate(path string) error {
 		}
 	}
 	if err := errors.Join(c.Providers.Repos.SecretPatterns.Check("providers.repos.secretPatterns"),
-		c.Providers.Repos.Spring.SecretPatterns.Check("providers.repos.spring.secretPatterns")); err != nil {
+		c.Providers.Repos.Spring.SecretPatterns.Check("providers.repos.spring.secretPatterns"),
+		c.Providers.Repos.Compose.SecretPatterns.Check("providers.repos.compose.secretPatterns")); err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	for i, v := range c.Providers.Azure.Vaults {

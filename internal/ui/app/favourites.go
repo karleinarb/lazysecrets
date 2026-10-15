@@ -102,13 +102,16 @@ func (m Model) containerRender(withSource bool) func(styles.Styles, provider.Con
 		n := st.Node(storeKey(c))
 		line := c.Name
 		if c.Source.Kind == provider.KindRepo {
-			// A secret file: a lock for an encrypted one, a leaf
-			// for Spring config, a file in the warning colour for plain
-			// text, and its type after it ("sops · age", "env · plain text").
+			// A secret file: a lock for an encrypted one, a leaf for
+			// Spring config, a whale for compose, a file in the warning
+			// colour for plain text, and its type after it ("sops ·
+			// age", "env · plain text").
 			icon, style := iconSet.Encrypted, sty.KindRepo
 			switch {
 			case strings.HasPrefix(c.Detail, "spring"):
 				icon, style = iconSet.Spring, sty.Spring
+			case strings.HasPrefix(c.Detail, "compose"):
+				icon, style = iconSet.Compose, sty.Compose
 			case !strings.HasPrefix(c.Detail, "sops"):
 				icon, style = iconSet.PlainFile, sty.Warning
 			}
