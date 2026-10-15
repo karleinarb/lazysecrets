@@ -49,9 +49,13 @@ what its pull request tested, and CI doesn't run again there.
 Merge as many pull requests as you like, then release `main`:
 
 ```sh
-scripts/release.sh --dry-run v0.2.0   # the notes the release would have
-scripts/release.sh v0.2.0             # CHANGELOG.md, commit, tag, push
+scripts/release.sh --dry-run minor    # the tag and notes the release would have
+scripts/release.sh minor              # CHANGELOG.md, commit, tag, push
 ```
+
+`patch`, `minor` and `major` bump the latest release (`v0.2.1` → `v0.2.2`,
+`v0.3.0`, `v1.0.0`; pre-releases don't count); a tag (`v0.3.0`,
+`v0.3.0-rc.1`) is taken as it is.
 
 It refuses unless you're on a clean `main` that matches `origin/main`.
 [git-cliff](https://git-cliff.org) (`cliff.toml`) writes `CHANGELOG.md`

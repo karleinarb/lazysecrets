@@ -3,8 +3,9 @@
 # it, tags the commit and pushes both; the tag runs
 # .gitea/workflows/release.yml, which builds and publishes the release.
 #
+#   scripts/release.sh minor           # or patch, major: after the latest release
 #   scripts/release.sh v0.2.0          # or v0.2.0-rc.1 for a pre-release
-#   scripts/release.sh --dry-run v0.2.0  # print the notes, change nothing
+#   scripts/release.sh --dry-run minor # print the tag and notes, change nothing
 #
 # A pre-release is tagged without touching CHANGELOG.md: its changes are
 # listed under the release that follows.
@@ -15,14 +16,34 @@ if [ "${1:-}" = "--dry-run" ]; then
   dry=true
   shift
 fi
-tag="${1:?usage: $0 [--dry-run] <tag, e.g. v0.2.0>}"
-if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-  echo "$tag is not vMAJOR.MINOR.PATCH (optionally -suffix)" >&2
-  exit 1
-fi
+tag="${1:?usage: $0 [--dry-run] <patch|minor|major, or a tag like v0.2.0>}"
 command -v git-cliff >/dev/null || { echo "git-cliff is needed: brew install git-cliff" >&2; exit 1; }
 
 cd "$(dirname "$0")/.."
+git fetch -q origin main --tags
+
+bumped=""
+case "$tag" in
+  patch | minor | major)
+    # The latest release, pre-releases left out: v0.3.0-rc.1 isn't one.
+    tags=$(git tag -l 'v*' --sort=-v:refname)
+    last=$(grep -m1 -E '^v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$tags" || true)
+    [ -n "$last" ] || { echo "No vMAJOR.MINOR.PATCH tag to bump from; give the tag." >&2; exit 1; }
+    IFS=. read -r major minor patch <<<"${last#v}"
+    case "$tag" in
+      major) next="v$((major + 1)).0.0" ;;
+      minor) next="v$major.$((minor + 1)).0" ;;
+      patch) next="v$major.$minor.$((patch + 1))" ;;
+    esac
+    bumped=" ($tag after $last)"
+    tag=$next
+    ;;
+esac
+if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+  echo "$tag is not patch, minor, major or vMAJOR.MINOR.PATCH (optionally -suffix)" >&2
+  exit 1
+fi
+echo "$tag$bumped"
 
 notes=$(git cliff --unreleased --tag "$tag" --strip all)
 if ! grep -q '^- ' <<<"$notes"; then
@@ -40,7 +61,6 @@ if [ -n "$(git status --porcelain)" ]; then
   echo "The working tree has changes; commit or stash them first." >&2
   exit 1
 fi
-git fetch -q origin main --tags
 if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   echo "main isn't origin/main; pull (or push) first." >&2
   exit 1
@@ -51,7 +71,7 @@ if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
 fi
 
 echo
-read -r -p "Release $tag with these notes? [y/N] " ok
+read -r -p "Release $tag$bumped with these notes? [y/N] " ok
 [ "$ok" = y ] || [ "$ok" = Y ] || exit 1
 
 if [[ "$tag" != *-* ]]; then
