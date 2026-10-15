@@ -84,6 +84,20 @@ const (
 	TypeCertificate ObjectType = "Certificate"
 )
 
+// Collection is the type's path segment in Key Vault URLs and links, e.g.
+// "secrets".
+func (t ObjectType) Collection() string {
+	switch t {
+	case TypeSecret:
+		return "secrets"
+	case TypeKey:
+		return "keys"
+	case TypeCertificate:
+		return "certificates"
+	}
+	return ""
+}
+
 // Container holds objects: a Key Vault or a Databricks secret scope.
 type Container struct {
 	Source Source

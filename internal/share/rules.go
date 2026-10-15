@@ -48,7 +48,11 @@ func (r Rules) Check(key []byte) error {
 		needs = append(needs, fmt.Sprintf("%d (minLength)", r.MinLength))
 	}
 	if kinds < r.MinClasses {
-		has = append(has, fmt.Sprintf("%d %s of character", kinds, map[bool]string{true: "kind", false: "kinds"}[kinds == 1]))
+		kind := "kinds"
+		if kinds == 1 {
+			kind = "kind"
+		}
+		has = append(has, fmt.Sprintf("%d %s of character", kinds, kind))
 		needs = append(needs, fmt.Sprintf("%d of lowercase, uppercase, digits and symbols (minClasses)", r.MinClasses))
 	}
 	if len(has) == 0 {

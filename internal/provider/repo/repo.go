@@ -356,30 +356,23 @@ func (p *Provider) Objects(_ context.Context, c provider.Container, t provider.O
 	if err != nil {
 		return nil, err
 	}
-	meta, isSops := readMeta(c.ID)
+	meta, isSops := parseMeta(c.ID, b)
 	keys, err := parseKeys(c.ID, b)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", c.Name, err)
 	}
-	if !isSops { // a plain env file
-		out := make([]provider.Object, 0, len(keys))
-		for _, k := range keys {
-			out = append(out, provider.Object{
-				Container: c, Type: provider.TypeSecret, ID: c.ID + "\x00" + k.extract, Name: k.name,
-				Attrs: []provider.Attr{{Label: "format", Value: "env"}, {Label: "encrypted", Value: "no: plain text in the file"}},
-			})
-		}
-		return out, nil
+	attrs := []provider.Attr{{Label: "format", Value: "env"}, {Label: "encrypted", Value: "no: plain text in the file"}}
+	if isSops {
+		attrs = []provider.Attr{{Label: "format", Value: "sops " + formatOf(c.ID)}, {Label: "encryption", Value: strings.Join(meta.methods, ", ")}}
 	}
 	out := make([]provider.Object, 0, len(keys))
 	for _, k := range keys {
 		o := provider.Object{
 			Container: c, Type: provider.TypeSecret,
-			ID: c.ID + "\x00" + k.extract, Name: k.name, Updated: meta.modified,
-			Attrs: []provider.Attr{{Label: "format", Value: "sops " + formatOf(c.ID)}, {Label: "encryption", Value: strings.Join(meta.methods, ", ")}},
+			ID: c.ID + "\x00" + k.extract, Name: k.name, Updated: meta.modified, Attrs: attrs,
 		}
-		if !k.encrypted {
-			o.Attrs = append(o.Attrs, provider.Attr{Label: "encrypted", Value: "no (left in plain text by the file's sops rules)"})
+		if isSops && !k.encrypted {
+			o.Attrs = append(slices.Clip(attrs), provider.Attr{Label: "encrypted", Value: "no (left in plain text by the file's sops rules)"})
 		}
 		out = append(out, o)
 	}
@@ -398,10 +391,7 @@ func (p *Provider) Versions(context.Context, provider.Object) ([]provider.Object
 func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.SecretValue, error) {
 	file, extract, ok := strings.Cut(o.ID, "\x00")
 	if !ok { // made from a link: the repo's root, the file's path, the key
-		file = o.Container.ID
-		if file == "" {
-			file = filepath.Join(o.Container.Source.ID, filepath.FromSlash(o.Container.Name))
-		}
+		file = filePath(o.Container)
 		extract = extractFor(file, o.Name)
 	}
 	if _, isSops := readMeta(file); !isSops {
@@ -429,12 +419,18 @@ func (p *Provider) Contents(_ context.Context, c provider.Container) ([]byte, er
 	return os.ReadFile(f.Path)
 }
 
+// filePath is the file c is. A container made from a link has no ID: the
+// file is its path in the repo.
+func filePath(c provider.Container) string {
+	if c.ID != "" {
+		return c.ID
+	}
+	return filepath.Join(c.Source.ID, filepath.FromSlash(c.Name))
+}
+
 // File is the file c is, and the line o's key is on.
 func (p *Provider) File(c provider.Container, o *provider.Object) (provider.File, error) {
-	path := c.ID
-	if path == "" { // made from a link
-		path = filepath.Join(c.Source.ID, filepath.FromSlash(c.Name))
-	}
+	path := filePath(c)
 	f := provider.File{Path: path}
 	if _, isSops := readMeta(path); isSops {
 		f.Sops = p.s.Sops
@@ -604,33 +600,38 @@ type lazysecretsFile struct {
 
 // ShareKey is the sharing.key of the repo's .lazysecrets.yaml, if any.
 func ShareKey(root string) (string, error) {
+	f, err := readLazysecretsFile(root)
+	return f.Sharing.Key, err
+}
+
+// readLazysecretsFile reads the repo's .lazysecrets.yaml; without one, it's
+// empty.
+func readLazysecretsFile(root string) (lazysecretsFile, error) {
+	var f lazysecretsFile
 	b, err := os.ReadFile(filepath.Join(root, ".lazysecrets.yaml"))
 	if errors.Is(err, os.ErrNotExist) {
-		return "", nil
+		return f, nil
 	}
 	if err != nil {
-		return "", err
+		return f, err
 	}
-	var f lazysecretsFile
 	if err := yaml.Unmarshal(b, &f); err != nil {
-		return "", fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
+		return f, fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
 	}
-	return f.Sharing.Key, nil
+	return f, nil
 }
 
 // selector says which files to look at: user (the include/exclude of the
 // repo's .lazysecrets.yaml or the config) for every file, and sopsWhere
 // (.sops.yaml's creation_rules, when there's no include) for SOPS files.
 func (p *Provider) selector(root string, files []string) (user, sopsWhere func(string) bool, err error) {
+	f, err := readLazysecretsFile(root)
+	if err != nil {
+		return nil, nil, err
+	}
 	include, exclude := p.s.Include, p.s.Exclude
-	if b, err := os.ReadFile(filepath.Join(root, ".lazysecrets.yaml")); err == nil {
-		var f lazysecretsFile
-		if err := yaml.Unmarshal(b, &f); err != nil {
-			return nil, nil, fmt.Errorf("%s/.lazysecrets.yaml: %w", root, err)
-		}
-		if len(f.Include) > 0 || len(f.Exclude) > 0 {
-			include, exclude = f.Include, f.Exclude
-		}
+	if len(f.Include) > 0 || len(f.Exclude) > 0 {
+		include, exclude = f.Include, f.Exclude
 	}
 	inc, err := globs(include)
 	if err != nil {
@@ -902,12 +903,21 @@ func readMeta(file string) (sopsMeta, bool) {
 		return sopsMeta{}, false // not a format sops writes: skip reading
 	}
 	b, err := os.ReadFile(file)
-	if err != nil || !bytes.Contains(b, []byte("sops")) {
+	if err != nil {
+		return sopsMeta{}, false
+	}
+	return parseMeta(file, b)
+}
+
+// parseMeta is readMeta, of the file's contents b.
+func parseMeta(file string, b []byte) (sopsMeta, bool) {
+	format := formatOf(file)
+	if len(b) > maxFileSize || format == "" || !bytes.Contains(b, []byte("sops")) {
 		return sopsMeta{}, false // cheap: most files aren't sops, no parsing
 	}
 	var m sopsMeta
 	known := []string{"age", "azure_kv", "kms", "gcp_kms", "hc_vault", "pgp"}
-	switch formatOf(file) {
+	switch format {
 	case "yaml", "json":
 		var doc struct {
 			Sops map[string]any `yaml:"sops"`

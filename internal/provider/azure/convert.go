@@ -55,8 +55,8 @@ func PortalResourceURL(tenant, resourceID, blade string) string {
 
 // portalAssetURL links to a Key Vault object's page: a version's with
 // one in objectID; a secret's own (its versions) without.
-func portalAssetURL(tenant, kind, objectID string) string {
-	return portal + tenantPrefix(tenant) + "asset/Microsoft_Azure_KeyVault/" + kind + "/" + objectID
+func portalAssetURL(tenant string, t provider.ObjectType, objectID string) string {
+	return portal + tenantPrefix(tenant) + "asset/Microsoft_Azure_KeyVault/" + string(t) + "/" + objectID
 }
 
 func tenantPrefix(tenant string) string {
@@ -73,19 +73,13 @@ func ObjectListURL(c provider.Container, t provider.ObjectType) string {
 	if !ok {
 		return ""
 	}
-	switch t {
-	case provider.TypeKey:
-		return base + "/keys"
-	case provider.TypeCertificate:
-		return base + "/certificates"
-	}
-	return base + "/secrets"
+	return base + "/" + t.Collection()
 }
 
 // objectURL is the data-plane URL of an object, e.g.
 // https://kv.vault.azure.net/secrets/name.
-func objectURL(c provider.Container, collection, name string) string {
-	return strings.TrimSuffix(c.Detail, "/") + "/" + collection + "/" + name
+func objectURL(c provider.Container, t provider.ObjectType, name string) string {
+	return strings.TrimSuffix(c.Detail, "/") + "/" + t.Collection() + "/" + name
 }
 
 // secretObject is a secret, or a version of one, from a listing. Its URL
@@ -93,7 +87,7 @@ func objectURL(c provider.Container, collection, name string) string {
 // a version, that version's.
 func secretObject(c provider.Container, p *azsecrets.SecretProperties, tenant string) provider.Object {
 	name := p.ID.Name()
-	url := objectURL(c, "secrets", name)
+	url := objectURL(c, provider.TypeSecret, name)
 	o := provider.Object{
 		Container:   c,
 		Type:        provider.TypeSecret,
@@ -103,7 +97,7 @@ func secretObject(c provider.Container, p *azsecrets.SecretProperties, tenant st
 		ContentType: deref(p.ContentType),
 		Tags:        tags(p.Tags),
 		Reference:   "@Microsoft.KeyVault(SecretUri=" + url + ")",
-		URL:         portalAssetURL(tenant, "Secret", strings.TrimSuffix(url+"/"+p.ID.Version(), "/")),
+		URL:         portalAssetURL(tenant, provider.TypeSecret, strings.TrimSuffix(url+"/"+p.ID.Version(), "/")),
 	}
 	if a := p.Attributes; a != nil {
 		o.Enabled, o.Updated, o.Expires = a.Enabled, deref(a.Updated), deref(a.Expires)
@@ -113,7 +107,7 @@ func secretObject(c provider.Container, p *azsecrets.SecretProperties, tenant st
 
 func keyObject(c provider.Container, p *azkeys.KeyProperties) provider.Object {
 	name := p.KID.Name()
-	url := objectURL(c, "keys", name)
+	url := objectURL(c, provider.TypeKey, name)
 	o := provider.Object{
 		Container: c,
 		Type:      provider.TypeKey,
@@ -132,7 +126,7 @@ func keyObject(c provider.Container, p *azkeys.KeyProperties) provider.Object {
 
 func certObject(c provider.Container, p *azcertificates.CertificateProperties) provider.Object {
 	name := p.ID.Name()
-	url := objectURL(c, "certificates", name)
+	url := objectURL(c, provider.TypeCertificate, name)
 	o := provider.Object{
 		Container: c,
 		Type:      provider.TypeCertificate,

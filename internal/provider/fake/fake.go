@@ -225,9 +225,7 @@ func (p *Provider) add(c provider.Container, t provider.ObjectType, o provider.O
 	o.Type = t
 	o.ID = c.ID + "/" + strings.ToLower(string(t)) + "/" + o.Name
 	if base, ok := strings.CutSuffix(c.URL, "/overview"); ok {
-		o.URL = base + map[provider.ObjectType]string{
-			provider.TypeSecret: "/secrets", provider.TypeKey: "/keys", provider.TypeCertificate: "/certificates",
-		}[t]
+		o.URL = base + "/" + t.Collection()
 	}
 	k := listKey{c.ID, t}
 	p.objects[k] = append(p.objects[k], o)
@@ -256,12 +254,13 @@ const (
 
 var allTypes = []provider.ObjectType{provider.TypeSecret, provider.TypeKey, provider.TypeCertificate}
 
+func secretRef(vault, name string) string {
+	return fmt.Sprintf("@Microsoft.KeyVault(SecretUri=https://%s.vault.azure.net/secrets/%s)", vault, name)
+}
+
 // Azure returns a fake Azure provider with two subscriptions.
 func Azure(delay time.Duration) *Provider {
 	p := newProvider(provider.KindAzure, delay)
-	secretRef := func(vault, name string) string {
-		return fmt.Sprintf("@Microsoft.KeyVault(SecretUri=https://%s.vault.azure.net/secrets/%s)", vault, name)
-	}
 	objectURL := func(vault, kind, name string) string {
 		return fmt.Sprintf("https://%s.vault.azure.net/%s/%s", vault, kind, name)
 	}
@@ -373,9 +372,6 @@ func Azure(delay time.Duration) *Provider {
 // its own, like an admin account next to a personal one.
 func AzureOps(delay time.Duration) *Provider {
 	p := newProvider(provider.KindAzure, delay)
-	secretRef := func(vault, name string) string {
-		return fmt.Sprintf("@Microsoft.KeyVault(SecretUri=https://%s.vault.azure.net/secrets/%s)", vault, name)
-	}
 
 	prod := p.addSource("sub-prod", "platform-prod", "tenant: example.onmicrosoft.com")
 	breakGlass := p.addContainer(prod, "kv-breakglass", "https://kv-breakglass.vault.azure.net", allTypes...)

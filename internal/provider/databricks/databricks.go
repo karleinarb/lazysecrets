@@ -203,17 +203,20 @@ func (p *Provider) Containers(ctx context.Context, src provider.Source) ([]provi
 	return out, nil
 }
 
-// vaultURL is the backing vault of an AKV-backed scope, or "". It falls
-// back to the scope's Detail, so a scope remembered from an earlier session
-// (a favourite) works before its workspace's scopes are listed.
-func (p *Provider) vaultURL(c provider.Container) string {
+// fallbackVault is the backing vault of an AKV-backed scope, to read it
+// from when Databricks fails, or "" when there's none to fall back to. It
+// falls back to the scope's Detail, so a scope remembered from an earlier
+// session (a favourite) works before its workspace's scopes are listed.
+func (p *Provider) fallbackVault(ctx context.Context, c provider.Container) string {
+	if p.keyVault == nil || ctx.Err() != nil {
+		return ""
+	}
 	p.mu.Lock()
 	url := p.vaults[c.ID]
 	p.mu.Unlock()
 	if url == "" {
-		url, _ = strings.CutPrefix(c.Detail, akvDetail)
-		if url == c.Detail {
-			url = ""
+		if detail, ok := strings.CutPrefix(c.Detail, akvDetail); ok {
+			url = detail
 		}
 	}
 	return url
@@ -264,8 +267,8 @@ func (p *Provider) Objects(ctx context.Context, c provider.Container, t provider
 
 // vaultObjects lists an AKV-backed scope's secrets from the vault itself.
 func (p *Provider) vaultObjects(ctx context.Context, c provider.Container) ([]provider.Object, error) {
-	url := p.vaultURL(c)
-	if url == "" || p.keyVault == nil || ctx.Err() != nil {
+	url := p.fallbackVault(ctx, c)
+	if url == "" {
 		return nil, errNoFallback
 	}
 	secrets, err := p.keyVault.Objects(ctx, provider.Container{Detail: url}, provider.TypeSecret)
@@ -302,8 +305,8 @@ func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.Secre
 	}
 	dbxErr := classify(pr, err)
 
-	url := p.vaultURL(o.Container)
-	if url == "" || p.keyVault == nil || ctx.Err() != nil {
+	url := p.fallbackVault(ctx, o.Container)
+	if url == "" {
 		return provider.SecretValue{}, dbxErr
 	}
 	v, kvErr := p.keyVault.Value(ctx, provider.Object{

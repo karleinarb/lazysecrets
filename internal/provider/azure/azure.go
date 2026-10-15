@@ -16,6 +16,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault/v2"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
@@ -99,13 +100,7 @@ func (p *Provider) Label() string { return cmp.Or(p.label, string(provider.KindA
 // Sources lists the subscriptions the signed-in identity can see, skipping
 // disabled and deleted ones.
 func (p *Provider) Sources(ctx context.Context) ([]provider.Source, error) {
-	var out []provider.Source
-	pager := p.subs.NewListPager(nil)
-	for pager.More() {
-		page, err := pager.NextPage(ctx)
-		if err != nil {
-			return nil, cleanError(err)
-		}
+	out, err := all(ctx, p.subs.NewListPager(nil), func(page armsubscriptions.ClientListResponse) (srcs []provider.Source) {
 		for _, s := range page.Value {
 			switch deref(s.State) {
 			case armsubscriptions.SubscriptionStateDisabled, armsubscriptions.SubscriptionStateDeleted:
@@ -118,7 +113,7 @@ func (p *Provider) Sources(ctx context.Context) ([]provider.Source, error) {
 			p.mu.Lock()
 			p.tenants[id] = tenant
 			p.mu.Unlock()
-			out = append(out, provider.Source{
+			srcs = append(srcs, provider.Source{
 				Kind:   provider.KindAzure,
 				ID:     id,
 				Name:   deref(s.DisplayName),
@@ -126,6 +121,10 @@ func (p *Provider) Sources(ctx context.Context) ([]provider.Source, error) {
 				URL:    PortalResourceURL(tenant, "/subscriptions/"+id, "overview"),
 			})
 		}
+		return srcs
+	})
+	if err != nil {
+		return nil, err
 	}
 	slices.SortFunc(out, func(a, b provider.Source) int { return cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
 	if len(p.opts.Vaults) > 0 {
@@ -230,22 +229,29 @@ func (p *Provider) armVaults(ctx context.Context, src provider.Source) ([]provid
 	if err != nil {
 		return nil, err
 	}
-	var out []provider.Container
-	pager := client.NewListBySubscriptionPager(nil)
+	return all(ctx, client.NewListBySubscriptionPager(nil), func(page armkeyvault.VaultsClientListBySubscriptionResponse) (vaults []provider.Container) {
+		for _, v := range page.Value {
+			if v.Properties == nil || v.Properties.VaultURI == nil {
+				continue
+			}
+			vaults = append(vaults, provider.Container{
+				Source: src, ID: deref(v.ID), Name: deref(v.Name),
+				Detail: *v.Properties.VaultURI, Types: objectTypes, Attrs: armInfo(v).attrs(),
+			})
+		}
+		return vaults
+	})
+}
+
+// all lists every page, items picking out what to keep of each.
+func all[P, T any](ctx context.Context, pager *runtime.Pager[P], items func(P) []T) ([]T, error) {
+	var out []T
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
 			return nil, cleanError(err)
 		}
-		for _, v := range page.Value {
-			if v.Properties == nil || v.Properties.VaultURI == nil {
-				continue
-			}
-			out = append(out, provider.Container{
-				Source: src, ID: deref(v.ID), Name: deref(v.Name),
-				Detail: *v.Properties.VaultURI, Types: objectTypes, Attrs: armInfo(v).attrs(),
-			})
-		}
+		out = append(out, items(page)...)
 	}
 	return out, nil
 }
@@ -288,50 +294,39 @@ func (p *Provider) Objects(ctx context.Context, c provider.Container, t provider
 	var out []provider.Object
 	switch t {
 	case provider.TypeSecret:
-		pager := vc.secrets.NewListSecretPropertiesPager(nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		tenant := p.tenant(c.Source.ID)
+		out, err = all(ctx, vc.secrets.NewListSecretPropertiesPager(nil), func(page azsecrets.ListSecretPropertiesResponse) (objs []provider.Object) {
 			for _, s := range page.Value {
 				// Certificate-backing secrets appear under Certificates.
-				if s.ID == nil || deref(s.Managed) {
-					continue
+				if s.ID != nil && !deref(s.Managed) {
+					objs = append(objs, secretObject(c, s, tenant))
 				}
-				out = append(out, secretObject(c, s, p.tenant(c.Source.ID)))
 			}
-		}
+			return objs
+		})
 	case provider.TypeKey:
-		pager := vc.keys.NewListKeyPropertiesPager(nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		out, err = all(ctx, vc.keys.NewListKeyPropertiesPager(nil), func(page azkeys.ListKeyPropertiesResponse) (objs []provider.Object) {
 			for _, k := range page.Value {
-				if k.KID == nil || deref(k.Managed) {
-					continue
+				if k.KID != nil && !deref(k.Managed) {
+					objs = append(objs, keyObject(c, k))
 				}
-				out = append(out, keyObject(c, k))
 			}
-		}
+			return objs
+		})
 	case provider.TypeCertificate:
-		pager := vc.certs.NewListCertificatePropertiesPager(nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		out, err = all(ctx, vc.certs.NewListCertificatePropertiesPager(nil), func(page azcertificates.ListCertificatePropertiesResponse) (objs []provider.Object) {
 			for _, cp := range page.Value {
-				if cp.ID == nil {
-					continue
+				if cp.ID != nil {
+					objs = append(objs, certObject(c, cp))
 				}
-				out = append(out, certObject(c, cp))
 			}
-		}
+			return objs
+		})
 	default:
 		return nil, provider.ErrUnsupported
+	}
+	if err != nil {
+		return nil, err
 	}
 	slices.SortFunc(out, func(a, b provider.Object) int { return cmp.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
 	return out, nil
@@ -353,7 +348,7 @@ func (p *Provider) Describe(ctx context.Context, o provider.Object) (provider.Ob
 		if resp.Key != nil {
 			if resp.Key.KID != nil {
 				o.Version = resp.Key.KID.Version()
-				o.URL = portalAssetURL(p.tenant(o.Container.Source.ID), "Key", string(*resp.Key.KID))
+				o.URL = portalAssetURL(p.tenant(o.Container.Source.ID), o.Type, string(*resp.Key.KID))
 			}
 			o.Attrs = keyAttrs(resp.Key)
 		}
@@ -364,7 +359,7 @@ func (p *Provider) Describe(ctx context.Context, o provider.Object) (provider.Ob
 		}
 		if resp.ID != nil {
 			o.Version = resp.ID.Version()
-			o.URL = portalAssetURL(p.tenant(o.Container.Source.ID), "Certificate", string(*resp.ID))
+			o.URL = portalAssetURL(p.tenant(o.Container.Source.ID), o.Type, string(*resp.ID))
 		}
 		if pol := resp.Policy; pol != nil && pol.SecretProperties != nil {
 			o.ContentType = deref(pol.SecretProperties.ContentType)
@@ -381,56 +376,46 @@ func (p *Provider) Versions(ctx context.Context, o provider.Object) ([]provider.
 	if err != nil {
 		return nil, err
 	}
+	tenant := p.tenant(o.Container.Source.ID)
 	var out []provider.Object
 	switch o.Type {
 	case provider.TypeSecret:
-		pager := vc.secrets.NewListSecretPropertiesVersionsPager(o.Name, nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		out, err = all(ctx, vc.secrets.NewListSecretPropertiesVersionsPager(o.Name, nil), func(page azsecrets.ListSecretPropertiesVersionsResponse) (objs []provider.Object) {
 			for _, s := range page.Value {
 				if s.ID != nil {
-					out = append(out, secretObject(o.Container, s, p.tenant(o.Container.Source.ID)))
+					objs = append(objs, secretObject(o.Container, s, tenant))
 				}
 			}
-		}
+			return objs
+		})
 	case provider.TypeKey:
-		pager := vc.keys.NewListKeyPropertiesVersionsPager(o.Name, nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		out, err = all(ctx, vc.keys.NewListKeyPropertiesVersionsPager(o.Name, nil), func(page azkeys.ListKeyPropertiesVersionsResponse) (objs []provider.Object) {
 			for _, k := range page.Value {
 				if k.KID != nil {
-					out = append(out, keyObject(o.Container, k))
+					objs = append(objs, keyObject(o.Container, k))
 				}
 			}
-		}
+			return objs
+		})
 	case provider.TypeCertificate:
-		pager := vc.certs.NewListCertificatePropertiesVersionsPager(o.Name, nil)
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return nil, cleanError(err)
-			}
+		out, err = all(ctx, vc.certs.NewListCertificatePropertiesVersionsPager(o.Name, nil), func(page azcertificates.ListCertificatePropertiesVersionsResponse) (objs []provider.Object) {
 			for _, cp := range page.Value {
 				if cp.ID != nil {
-					out = append(out, certObject(o.Container, cp))
+					objs = append(objs, certObject(o.Container, cp))
 				}
 			}
-		}
+			return objs
+		})
 	default:
 		return nil, provider.ErrUnsupported
 	}
-	tenant := p.tenant(o.Container.Source.ID)
+	if err != nil {
+		return nil, err
+	}
 	for i := range out {
 		out[i].Reference = versionedReference(out[i])
 		if o.Type != provider.TypeSecret { // secretObject's is the version's already
-			kind := map[provider.ObjectType]string{provider.TypeKey: "Key", provider.TypeCertificate: "Certificate"}[o.Type]
-			out[i].URL = portalAssetURL(tenant, kind, out[i].ID+"/"+out[i].Version) // the version's page
+			out[i].URL = portalAssetURL(tenant, o.Type, out[i].ID+"/"+out[i].Version) // the version's page
 		}
 	}
 	slices.SortFunc(out, func(a, b provider.Object) int { return b.Updated.Compare(a.Updated) })
@@ -452,56 +437,49 @@ func versionedReference(o provider.Object) string {
 // Value returns a secret's value, a key's public key or a certificate's
 // public certificate, as of o.Version (latest if empty).
 func (p *Provider) Value(ctx context.Context, o provider.Object) (provider.SecretValue, error) {
-	vc, err := p.clients(o.Container.Detail)
-	if err != nil {
-		return provider.SecretValue{}, err
-	}
-	switch o.Type {
-	case provider.TypeSecret:
-		v, _, err := p.VersionedValue(ctx, o)
-		return v, err
-	case provider.TypeKey:
-		resp, err := vc.keys.GetKey(ctx, o.Name, o.Version, nil)
-		if err != nil {
-			return provider.SecretValue{}, cleanError(err)
-		}
-		pemKey, err := publicKeyPEM(resp.Key)
-		if err != nil {
-			return provider.SecretValue{}, err
-		}
-		return provider.NewSecretValue([]byte(pemKey)), nil
-	case provider.TypeCertificate:
-		resp, err := vc.certs.GetCertificate(ctx, o.Name, o.Version, nil)
-		if err != nil {
-			return provider.SecretValue{}, cleanError(err)
-		}
-		if len(resp.CER) == 0 {
-			return provider.SecretValue{}, errors.New("certificate has no public certificate yet (pending issuance?)")
-		}
-		return provider.NewSecretValue([]byte(certPEM(resp.CER))), nil
-	}
-	return provider.SecretValue{}, provider.ErrUnsupported
+	v, _, err := p.VersionedValue(ctx, o)
+	return v, err
 }
 
 // VersionedValue is Value, with the version read.
 func (p *Provider) VersionedValue(ctx context.Context, o provider.Object) (provider.SecretValue, string, error) {
-	if o.Type != provider.TypeSecret {
-		v, err := p.Value(ctx, o)
-		return v, o.Version, err
-	}
 	vc, err := p.clients(o.Container.Detail)
 	if err != nil {
 		return provider.SecretValue{}, "", err
 	}
-	resp, err := vc.secrets.GetSecret(ctx, o.Name, o.Version, nil)
-	if err != nil {
-		return provider.SecretValue{}, "", cleanError(err)
+	var text string
+	switch o.Type {
+	case provider.TypeSecret:
+		resp, err := vc.secrets.GetSecret(ctx, o.Name, o.Version, nil)
+		if err != nil {
+			return provider.SecretValue{}, "", cleanError(err)
+		}
+		version := o.Version
+		if resp.ID != nil {
+			version = resp.ID.Version()
+		}
+		return provider.NewSecretValue([]byte(deref(resp.Value))), version, nil
+	case provider.TypeKey:
+		resp, err := vc.keys.GetKey(ctx, o.Name, o.Version, nil)
+		if err != nil {
+			return provider.SecretValue{}, "", cleanError(err)
+		}
+		if text, err = publicKeyPEM(resp.Key); err != nil {
+			return provider.SecretValue{}, "", err
+		}
+	case provider.TypeCertificate:
+		resp, err := vc.certs.GetCertificate(ctx, o.Name, o.Version, nil)
+		if err != nil {
+			return provider.SecretValue{}, "", cleanError(err)
+		}
+		if len(resp.CER) == 0 {
+			return provider.SecretValue{}, "", errors.New("certificate has no public certificate yet (pending issuance?)")
+		}
+		text = certPEM(resp.CER)
+	default:
+		return provider.SecretValue{}, "", provider.ErrUnsupported
 	}
-	version := o.Version
-	if resp.ID != nil {
-		version = resp.ID.Version()
-	}
-	return provider.NewSecretValue([]byte(deref(resp.Value))), version, nil
+	return provider.NewSecretValue([]byte(text)), o.Version, nil
 }
 
 var (

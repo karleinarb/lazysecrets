@@ -71,12 +71,9 @@ func graphInfo(m map[string]any) vaultInfo {
 
 // armInfo reads a vault's settings from the management API.
 func armInfo(v *armkeyvault.Vault) vaultInfo {
-	info := vaultInfo{location: deref(v.Location), tags: map[string]string{}}
+	info := vaultInfo{location: deref(v.Location), tags: tags(v.Tags)}
 	if id, err := arm.ParseResourceID(deref(v.ID)); err == nil {
 		info.group = id.ResourceGroupName
-	}
-	for k, t := range v.Tags {
-		info.tags[k] = deref(t)
 	}
 	pr := v.Properties
 	if pr == nil {
@@ -123,7 +120,11 @@ func (v vaultInfo) attrs() []provider.Attr {
 	} else {
 		add("soft delete", "off")
 	}
-	add("purge prot.", map[bool]string{true: "on", false: "off"}[on(v.purge, false)])
+	if on(v.purge, false) {
+		add("purge prot.", "on")
+	} else {
+		add("purge prot.", "off")
+	}
 	switch {
 	case strings.EqualFold(v.publicAccess, "disabled"):
 		add("network", "private endpoints only")
@@ -132,8 +133,11 @@ func (v vaultInfo) attrs() []provider.Attr {
 	default:
 		add("network", "all networks")
 	}
-	if v.endpoints > 0 {
-		add("private", fmt.Sprintf("%d endpoint%s", v.endpoints, map[bool]string{true: "s"}[v.endpoints > 1]))
+	switch {
+	case v.endpoints == 1:
+		add("private", "1 endpoint")
+	case v.endpoints > 1:
+		add("private", fmt.Sprintf("%d endpoints", v.endpoints))
 	}
 	for i, k := range slices.Sorted(maps.Keys(v.tags)) {
 		label := ""

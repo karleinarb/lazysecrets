@@ -92,15 +92,9 @@ func (r Ref) ContainerName() string {
 // Container.Detail.
 func (r Ref) VaultURL() string { return "https://" + r.Host + "/" }
 
-var collections = map[provider.ObjectType]string{
-	provider.TypeSecret:      "secrets",
-	provider.TypeKey:         "keys",
-	provider.TypeCertificate: "certificates",
-}
-
 func typeOf(collection string) (provider.ObjectType, bool) {
-	for t, c := range collections {
-		if strings.EqualFold(c, collection) {
+	for _, t := range []provider.ObjectType{provider.TypeSecret, provider.TypeKey, provider.TypeCertificate} {
+		if strings.EqualFold(t.Collection(), collection) {
 			return t, true
 		}
 	}
@@ -118,7 +112,7 @@ func (r Ref) IdentifierURL() string {
 	if r.Type == "" {
 		return u + "/"
 	}
-	for _, seg := range []string{collections[r.Type], r.Name, r.Version} {
+	for _, seg := range []string{r.Type.Collection(), r.Name, r.Version} {
 		if seg != "" {
 			u += "/" + url.PathEscape(seg)
 		}
@@ -140,7 +134,7 @@ func (r Ref) String() string {
 		segs = append(segs, r.Scope, r.Name)
 	default:
 		if r.Type != "" {
-			segs = append(segs, collections[r.Type])
+			segs = append(segs, r.Type.Collection())
 		}
 		segs = append(segs, r.Name, r.Version)
 	}
@@ -273,7 +267,7 @@ func parseLink(s string) (Ref, error) {
 	r.Host = strings.ToLower(segs[0])
 	rest := segs[1:]
 
-	switch strings.ToLower(u.Host) {
+	switch host := strings.ToLower(u.Host); host {
 	case "azure":
 		r.Kind = provider.KindAzure
 		if r.Host == "subscriptions" {
@@ -300,11 +294,11 @@ func parseLink(s string) (Ref, error) {
 		}
 	case "databricks", "repo":
 		r.Kind = provider.KindDatabricks
-		if strings.EqualFold(u.Host, "repo") {
+		if host == "repo" {
 			r.Kind = provider.KindRepo
 		}
 		if len(rest) > 2 {
-			return Ref{}, fmt.Errorf("%s link has too many parts", strings.ToLower(u.Host))
+			return Ref{}, fmt.Errorf("%s link has too many parts", host)
 		}
 		if len(rest) > 0 {
 			r.Scope = rest[0]
