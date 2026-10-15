@@ -1319,8 +1319,7 @@ func (m *Model) countVersions(o provider.Object) tea.Cmd {
 	})
 }
 
-// closeVersions returns the Secrets pane to the object list, with the
-// cursor on the object whose versions were shown.
+// closeVersions returns the Secrets pane to the object list.
 func (m *Model) closeVersions() {
 	m.versionsOf = nil
 }

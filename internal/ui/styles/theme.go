@@ -131,7 +131,6 @@ type value struct {
 	bold, italic, underline, reverse, faint bool
 }
 
-// fg styles s with the value as foreground, bg as background.
 func (v value) fg(s lipgloss.Style) lipgloss.Style {
 	if v.color != nil {
 		s = s.Foreground(v.color)

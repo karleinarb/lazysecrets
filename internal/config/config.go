@@ -47,7 +47,8 @@ type UI struct {
 	// RecentIcon marks items used lately (Recent, R) with ◷, in the lists
 	// and in lazysecrets list. Defaults to false.
 	RecentIcon *bool `yaml:"recentIcon"`
-	// SourcesView is "grouped" (default) or "flat"; ` + "`" + ` toggles it.
+	// SourcesView is "grouped" (default) or "flat"; the backtick key
+	// toggles it.
 	SourcesView string `yaml:"sourcesView"`
 	// CollapseGroups starts the Sources pane with its groups folded;
 	// defaults to true.

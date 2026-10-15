@@ -1,6 +1,6 @@
 // Package repo browses the encrypted secret files in git repositories:
 // a repo is a source, its secret files the containers (vault level), and
-// their keys the secrets. SOPS files are the one type so far.
+// their keys the secrets. Secret files are SOPS files and plain env files.
 //
 // Listing never decrypts: SOPS encrypts values only, so a file's keys and
 // metadata are read directly. A value is decrypted when it's revealed or
@@ -106,8 +106,6 @@ func (p *Provider) load() {
 				roots = append(roots, root)
 			}
 		}
-		// The repo lazysecrets started in, if any: marked, so the UI can
-		// put it on top, with its files under Dir first.
 		here, inRepo := p.current()
 		if inRepo {
 			seen[here.root] = true
@@ -137,7 +135,6 @@ func (p *Provider) load() {
 				add(root)
 			}
 		}
-		// Repos you starred something in, wherever they are.
 		for _, dir := range p.s.Starred {
 			if root, err := gitRoot(dir); err == nil {
 				add(root)

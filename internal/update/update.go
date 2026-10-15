@@ -89,14 +89,9 @@ func (r Release) Notes(current string) string {
 	return PlainLinks(strings.TrimSpace(notes))
 }
 
-// recentReleases is how many releases Latest reads the changelogs of.
-const recentReleases = 10
-
 // PlainLinks shows Markdown links as their text, for a terminal.
 func PlainLinks(s string) string { return mdLink.ReplaceAllString(s, "$1") }
 
-// mdLink is a Markdown link, [text](url): the notes link PRs and commits,
-// and a terminal shows them as their text.
 var mdLink = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)\s]+)\)`)
 
 // Client talks to the release servers.
@@ -147,6 +142,9 @@ func (c *Client) Latest(ctx context.Context) (Release, error) {
 	}
 	return Release{}, errors.Join(errs...)
 }
+
+// recentReleases is how many releases Latest reads the changelogs of.
+const recentReleases = 10
 
 func (c *Client) latest(ctx context.Context, repo string) (Release, error) {
 	api, err := API(repo)

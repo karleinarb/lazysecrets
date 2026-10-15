@@ -114,7 +114,7 @@ func Check() string {
 	}
 	out, err := exec.Command("plutil", "-extract", exeKey, "raw", filepath.Join(app, "Contents", "Info.plist")).Output()
 	if err != nil {
-		return "" // installed before the key was recorded: assume it works
+		return "" // can't tell: assume it works
 	}
 	if exe := strings.TrimSpace(string(out)); !exists(exe) {
 		return "lazysecrets:// links run " + exe + ", which no longer exists"

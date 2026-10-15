@@ -140,7 +140,7 @@ func appleString(s string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
 }
 
-// Launch opens a new terminal window running inner, without waiting for
+// Launch opens a new terminal window running argv, without waiting for
 // it.
 func Launch(argv []string) error {
 	cmd := exec.Command(argv[0], argv[1:]...)

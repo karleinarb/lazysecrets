@@ -11,13 +11,13 @@ import (
 //	go build -ldflags "-X main.version=1.2.3" ./cmd/lazysecrets
 var version string
 
-// versionString is the release version, or for other builds what Go
-// recorded: the module version (go install …@v1.2.3), else the commit
-// (dev-c1a4f90, -dirty with changes not committed).
 // pseudo matches a Go pseudo-version (v0.1.3-0.20261014174204-1c31a75d0507,
 // maybe +dirty): its commit.
 var pseudo = regexp.MustCompile(`[-.]\d{14}-([0-9a-f]{12})(\+.*)?$`)
 
+// versionString is the release version, or for other builds what Go
+// recorded: the module version (go install …@v1.2.3), else the commit
+// (dev-c1a4f90, -dirty with changes not committed).
 func versionString() string {
 	if version != "" {
 		return version

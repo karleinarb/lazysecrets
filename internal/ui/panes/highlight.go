@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// sgr matches SGR escape sequences.
 var sgr = regexp.MustCompile("\x1b\\[([0-9;:]*)m")
 
 // Highlight draws a cursor row: line, padded to width, on style's

@@ -304,7 +304,7 @@ func (m *Model) handleShareOpened(msg shareOpenedMsg) tea.Cmd {
 }
 
 // openFailed says why a share link couldn't be decrypted, in a popup
-// where its offer was: its first line (wrapped), or with whole all of it
+// where its offer was: its first line (wrapped), or, with whole, all of it
 // (Key Vault's refusals say what to check on later lines). From there,
 // the key's secret can be gone to: its version, which may be disabled.
 func (m *Model) openFailed(s share.Sealed, err error, whole bool) {
