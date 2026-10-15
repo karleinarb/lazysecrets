@@ -1188,7 +1188,7 @@ func TestStatusLineCountsRepos(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t, fake.Azure(0), fake.Repos())
 	// The status line, not the pane, which an expired secret's ⚠ fills.
-	if line := ansi.Strip(d.m.statusLine()); !strings.Contains(line, "1 account · 3 repos") {
+	if line := ansi.Strip(d.m.statusLine()); !strings.Contains(line, "1 account · 4 repos") {
 		t.Errorf("status line: %q", line)
 	}
 	d = newDriver(t, fake.Azure(0))

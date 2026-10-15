@@ -2,6 +2,7 @@ package fake
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
@@ -18,8 +19,9 @@ func (p *Provider) Details(ctx context.Context, c provider.Container) ([]provide
 	return attrs, ctx.Err()
 }
 
-// Repos returns a fake repo provider: three git repos with SOPS and plain
-// .env files, the first one the repo lazysecrets was started in.
+// Repos returns a fake repo provider: four git repos with SOPS, plain
+// .env, Spring and compose files, the first one the repo lazysecrets was
+// started in.
 func Repos() *Provider {
 	p := newProvider(provider.KindRepo, 0)
 	p.id, p.label = "Repos", "Repos"
@@ -113,6 +115,90 @@ func Repos() *Provider {
 		"AZURE_CLIENT_SECRET", "azure-demo-client-secret",
 		"ARM_SUBSCRIPTION_ID", "00000000-0000-0000-0000-000000000000")
 
+	// config adds a Spring or compose file (kind) and its keys as name,
+	// value and how it's listed: "" a secret, "hidden", "reference" (the
+	// value is a placeholder) or "jasypt" (the value is the decrypted one).
+	config := func(src provider.Source, path, kind, git, commit string, kv ...string) {
+		form := "yaml"
+		if strings.HasSuffix(path, ".properties") {
+			form = "properties"
+		}
+		c := p.addContainer(src, path, kind+" · "+form, provider.TypeSecret)
+		format := provider.Attr{Label: "format", Value: kind + " " + form}
+		secrets, hidden, jasypt, plain := 0, 0, 0, false
+		for i := 0; i+2 < len(kv); i += 3 {
+			o := provider.Object{Name: kv[i], Attrs: []provider.Attr{format, {Label: "encrypted", Value: "no: plain text in the file"}}}
+			switch kv[i+2] {
+			case "hidden":
+				o.Hidden = true
+				hidden++
+				continue
+			case "reference":
+				o.Detail, o.Attrs[1] = "reference", provider.Attr{Label: "value", Value: "a reference: the secret is set elsewhere"}
+			case "jasypt":
+				o.Detail, o.Attrs[1] = "jasypt", provider.Attr{Label: "encrypted", Value: "jasypt"}
+				jasypt++
+			default:
+				plain = plain || kv[i+1] != ""
+			}
+			secrets++
+			p.add(c, provider.TypeSecret, o, kv[i+1])
+		}
+		// Hidden keys after the rest, so the list opens on a secret.
+		for i := 0; i+2 < len(kv); i += 3 {
+			if kv[i+2] == "hidden" {
+				p.add(c, provider.TypeSecret, provider.Object{Name: kv[i], Hidden: true, Attrs: []provider.Attr{format}}, kv[i+1])
+			}
+		}
+		if secrets == 0 {
+			p.hide(src, path)
+		}
+		encryption := "none: plain text"
+		if jasypt > 0 {
+			encryption = fmt.Sprintf("jasypt: %d of %d values", jasypt, secrets+hidden)
+		}
+		d := []provider.Attr{
+			{Label: "encryption", Value: encryption},
+			{Label: "hidden keys", Value: fmt.Sprintf("%d, not matched by the secret patterns", hidden)},
+		}
+		if git == "tracked" && plain {
+			d = append(d, provider.Attr{Label: "git", Value: "tracked: its values are in the repo's history", Warn: true})
+		} else {
+			d = append(d, provider.Attr{Label: "git", Value: git})
+		}
+		p.details[c.ID] = append(d, provider.Attr{Label: "commit", Value: commit})
+	}
+
+	orders := repo("orders-service", false)
+	config(orders, "src/main/resources/application.yml", "spring", "tracked", "5be2c07 · 6 days ago",
+		"spring.application.name", "orders-service", "hidden",
+		"server.port", "8080", "hidden",
+		"spring.datasource.url", "jdbc:postgresql://orders-db:5432/orders", "hidden",
+		"spring.datasource.password", "${DB_PASSWORD}", "reference",
+		"spring.security.oauth2.client.provider.idp.token-uri", "https://idp.acme.example/token", "hidden",
+		"spring.security.oauth2.client.registration.orders.client-secret", "orders-demo-client-secret", "jasypt",
+		"jasypt.encryptor.password", "${JASYPT_ENCRYPTOR_PASSWORD}", "reference",
+		"app.payment.api-key", "pay_live_demo_7Hq2", "jasypt")
+	config(orders, "src/main/resources/application-local.properties", "spring", "tracked", "5be2c07 · 6 days ago",
+		"spring.datasource.url", "jdbc:postgresql://localhost:5432/orders", "hidden",
+		"spring.datasource.password", "local-orders-pw", "",
+		"logging.level.com.acme", "DEBUG", "hidden")
+	config(orders, "src/test/resources/application-test.yml", "spring", "tracked", "d81a3f9 · 3 weeks ago",
+		"spring.datasource.url", "jdbc:h2:mem:orders", "hidden",
+		"spring.jpa.hibernate.ddl-auto", "create-drop", "hidden")
+	config(orders, "docker-compose.yml", "compose", "tracked", "5be2c07 · 6 days ago",
+		"api.SPRING_PROFILES_ACTIVE", "local", "hidden",
+		"api.DB_PASSWORD", "${DB_PASSWORD}", "reference",
+		"db.POSTGRES_USER", "orders", "hidden",
+		"db.POSTGRES_PASSWORD", "orders-db-demo-pw", "")
+	config(orders, "docker-compose.example.yml", "compose", "tracked", "5be2c07 · 6 days ago",
+		"db.POSTGRES_PASSWORD", "changeme", "")
+	p.hide(orders, "docker-compose.example.yml")
+	file(orders, ".env.example", "", "tracked", "5be2c07 · 6 days ago",
+		"DB_PASSWORD", "changeme",
+		"JASYPT_ENCRYPTOR_PASSWORD", "changeme")
+	p.hide(orders, ".env.example")
+
 	web := repo("web-frontend", false)
 	file(web, ".env.production", "age", "tracked", "b2e91f4 · 4 days ago",
 		"SENTRY_AUTH_TOKEN", "sntrys_demo_token",
@@ -148,4 +234,14 @@ func (p *Provider) Contents(ctx context.Context, c provider.Container) ([]byte, 
 		b.WriteString(o.Name + "=" + p.values[o.ID] + "\n")
 	}
 	return []byte(b.String()), ctx.Err()
+}
+
+// hide marks a file hidden, as the repo provider does an example file or
+// a config file without secrets.
+func (p *Provider) hide(src provider.Source, name string) {
+	for i, c := range p.containers[src.ID] {
+		if c.Name == name {
+			p.containers[src.ID][i].Hidden = true
+		}
+	}
 }
