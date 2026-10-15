@@ -269,7 +269,7 @@ func (m Model) refLabel(r ref.Ref) string {
 	default:
 		path = append(path, r.ContainerName(), r.Name)
 	}
-	label := m.pathLabel(r.Kind, path, "")
+	label := m.pathLabel(r.Kind, path, "", m.refFileIcon(r))
 	var extra []string
 	if t := strings.ToLower(pluralLabels[r.Type]); t != "" && r.Type != provider.TypeSecret {
 		if r.IsContainer() {

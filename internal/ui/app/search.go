@@ -58,11 +58,11 @@ func (m *Model) searchEntries() (sources, items []option) {
 	var es []entry
 	// key is the store key, so ctrl+f stars the entry; mark shows how
 	// much is loaded, reload (ctrl+r) loads it again.
-	add := func(depth int, row string, kind provider.Kind, path []string, account, key, mark string, run, reload func(*Model) tea.Cmd) *option {
+	add := func(depth int, row string, kind provider.Kind, path []string, account, fileIcon, key, mark string, run, reload func(*Model) tea.Cmd) *option {
 		n := m.store.Node(key)
 		sort := strings.ToLower(strings.Join(path, "/")) + " " + account
 		es = append(es, entry{depth, sort,
-			option{label: m.pathLabel(kind, path, account), note: n.Note, star: key,
+			option{label: m.pathLabel(kind, path, account, fileIcon), note: n.Note, star: key,
 				starAccount: cachefile.ProviderOf(row), starred: n.StarredFor(cachefile.ProviderOf(row)),
 				mark: mark, run: run, reload: reload, id: sort, group: row, kind: kind}})
 		return &es[len(es)-1].opt
@@ -81,7 +81,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 			}
 			src.Provider, src.ProviderLabel = p.ID(), p.Label()
 			row := sourceRowKey(p.ID(), src.ID)
-			dim(src.Hidden, add(0, row, src.Kind, []string{src.Name}, accountOf(src), sourceKey(src), m.sourceMark(row), func(m *Model) tea.Cmd {
+			dim(src.Hidden, add(0, row, src.Kind, []string{src.Name}, accountOf(src), "", sourceKey(src), m.sourceMark(row), func(m *Model) tea.Cmd {
 				m.nav = &nav{sourceRow: row, sourceOnly: true}
 				return nil
 			}, func(m *Model) tea.Cmd { return m.loadSource(src) }))
@@ -94,7 +94,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 					continue
 				}
 				reload := func(m *Model) tea.Cmd { return m.loadContainer(c) }
-				dim(c.Hidden, add(1, row, c.Source.Kind, []string{src.Name, c.Name}, accountOf(src), storeKey(c), m.vaultMark(c), func(m *Model) tea.Cmd {
+				dim(c.Hidden, add(1, row, c.Source.Kind, []string{src.Name, c.Name}, accountOf(src), m.fileIcon(m.st, c), storeKey(c), m.vaultMark(c), func(m *Model) tea.Cmd {
 					m.startNav(r, actGo, row)
 					return nil
 				}, reload))
@@ -109,7 +109,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 							typ := strings.TrimSuffix(strings.ToLower(pluralLabels[t]), "s") // "key"
 							suffix = strings.Trim(typ+" · "+suffix, " ·")
 						}
-						e := add(2, row, c.Source.Kind, []string{src.Name, c.Name, o.Name}, suffix, objectKey(o), " ", func(m *Model) tea.Cmd {
+						e := add(2, row, c.Source.Kind, []string{src.Name, c.Name, o.Name}, suffix, m.fileIcon(m.st, c), objectKey(o), " ", func(m *Model) tea.Cmd {
 							m.startNav(r, actGo, row)
 							return nil
 						}, reload)

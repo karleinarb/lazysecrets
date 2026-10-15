@@ -97,26 +97,15 @@ func (m *Model) refreshContext(key, name string, path []string, src provider.Sou
 // containerRender draws a vault or scope, starred or not. In the
 // Opened links list it also names the source, since they come from many.
 func (m Model) containerRender(withSource bool) func(styles.Styles, provider.Container, int) string {
-	st, iconSet := m.store, m.icons
+	st := m.store
 	return func(sty styles.Styles, c provider.Container, width int) string {
 		n := st.Node(storeKey(c))
 		line := c.Name
 		if c.Source.Kind == provider.KindRepo {
-			// A secret file: a lock for an encrypted one, a leaf for
-			// Spring config, a whale for compose, a file in the warning
-			// colour for plain text, and its type after it ("sops ·
+			// A secret file: its icon, and its type after it ("sops ·
 			// age", "env · plain text").
-			icon, style := iconSet.Encrypted, sty.KindRepo
-			switch {
-			case strings.HasPrefix(c.Detail, "spring"):
-				icon, style = iconSet.Spring, sty.Spring
-			case strings.HasPrefix(c.Detail, "compose"):
-				icon, style = iconSet.Compose, sty.Compose
-			case !strings.HasPrefix(c.Detail, "sops"):
-				icon, style = iconSet.PlainFile, sty.Warning
-			}
-			if icon != "" {
-				line = style.Render(icon) + " " + line
+			if icon := m.fileIcon(sty, c); icon != "" {
+				line = icon + " " + line
 			}
 			line += sty.Muted.Render("  " + c.Detail)
 		}
@@ -153,6 +142,28 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 		}
 		return withNote(sty, line, n.Note, width)
 	}
+}
+
+// fileIcon is a repo file's icon, in its colour: a lock for an encrypted
+// one, a leaf for Spring config, a whale for compose, a file in the
+// warning colour for plain text; "" for other vaults, or without icons.
+func (m Model) fileIcon(sty styles.Styles, c provider.Container) string {
+	if c.Source.Kind != provider.KindRepo {
+		return ""
+	}
+	icon, style := m.icons.Encrypted, sty.KindRepo
+	switch {
+	case strings.HasPrefix(c.Detail, "spring"):
+		icon, style = m.icons.Spring, sty.Spring
+	case strings.HasPrefix(c.Detail, "compose"):
+		icon, style = m.icons.Compose, sty.Compose
+	case !strings.HasPrefix(c.Detail, "sops"):
+		icon, style = m.icons.PlainFile, sty.Warning
+	}
+	if icon == "" {
+		return ""
+	}
+	return style.Render(icon)
 }
 
 // dimIf draws a hidden item's row (shown with H) in the muted colour,

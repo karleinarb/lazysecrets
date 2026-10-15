@@ -47,7 +47,7 @@ func (m *Model) storeEntries() (favs, recent []option) {
 			account = strings.Trim(detail+" · "+account, " ·")
 			sort := strings.ToLower(strings.Join(path, "/")) + " " + account
 			out = append(out, entry{depth, sort, option{
-				label: m.pathLabel(r.Kind, path, account), note: n.Note, mark: " ",
+				label: m.pathLabel(r.Kind, path, account, m.refFileIcon(r)), note: n.Note, mark: " ",
 				id: prefix + key + "|" + acct, star: key, starAccount: acct, starred: n.StarredFor(acct),
 				plain: m.inPlainEnv(r),
 				run: func(m *Model) tea.Cmd {
@@ -128,11 +128,14 @@ const recentMax = 20
 
 // pathLabel draws a jump list entry: the provider's icon and the path in
 // its colour, then the account.
-func (m Model) pathLabel(kind provider.Kind, path []string, account string) string {
+func (m Model) pathLabel(kind provider.Kind, path []string, account, fileIcon string) string {
 	style := m.st.Kind(kind)
 	parts := make([]string, len(path))
 	for i, p := range path {
 		parts[i] = style.Render(p)
+	}
+	if fileIcon != "" && len(parts) > 1 {
+		parts[1] = fileIcon + " " + parts[1]
 	}
 	label := style.Render(m.icons.Prefix(kind)) + strings.Join(parts, m.st.Muted.Render(" / "))
 	if account != "" {
@@ -144,19 +147,34 @@ func (m Model) pathLabel(kind provider.Kind, path []string, account string) stri
 // inPlainEnv reports whether r is a key in a plain env file, as far as
 // the files loaded tell.
 func (m Model) inPlainEnv(r ref.Ref) bool {
-	if r.Kind != provider.KindRepo || r.Name == "" {
-		return false
+	c, ok := m.repoFile(r)
+	return ok && r.Name != "" && c.Detail == provider.DetailPlainEnv
+}
+
+// repoFile is the repo file r is or is in, as far as the files loaded
+// tell.
+func (m Model) repoFile(r ref.Ref) (provider.Container, bool) {
+	if r.Kind != provider.KindRepo || r.IsSource() {
+		return provider.Container{}, false
 	}
 	file := r
 	file.Name, file.Type = "", ""
 	for _, e := range m.cache.containers {
 		for _, c := range e.value {
-			if c.Detail == provider.DetailPlainEnv && storeKey(c) == file.String() {
-				return true
+			if storeKey(c) == file.String() {
+				return c, true
 			}
 		}
 	}
-	return false
+	return provider.Container{}, false
+}
+
+// refFileIcon is the icon of the repo file r is or is in, if it's loaded.
+func (m Model) refFileIcon(r ref.Ref) string {
+	if c, ok := m.repoFile(r); ok {
+		return m.fileIcon(m.st, c)
+	}
+	return ""
 }
 
 // objectDetail is the Detail of the secret with the store key key, as far
@@ -175,7 +193,7 @@ func (m Model) objectDetail(key string) string {
 // repoLabel draws a repo, or a file in it, as everywhere else: the repo
 // icon and colour, "app / apps/api/.env".
 func (m Model) repoLabel(repo string, file ...string) string {
-	return m.pathLabel(provider.KindRepo, append([]string{repo}, file...), "")
+	return m.pathLabel(provider.KindRepo, append([]string{repo}, file...), "", "")
 }
 
 // sourceMatches reports whether src is the subscription or workspace r
