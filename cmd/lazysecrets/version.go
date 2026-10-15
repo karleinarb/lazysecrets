@@ -3,7 +3,6 @@ package main
 import (
 	"regexp"
 	"runtime/debug"
-	"strings"
 )
 
 // version is set by release builds:
@@ -31,7 +30,7 @@ func versionString() string {
 		// go install …@<commit>.
 		if m := pseudo.FindStringSubmatch(v); m != nil {
 			dirty := ""
-			if strings.HasSuffix(v, "+dirty") {
+			if m[2] != "" {
 				dirty = "-dirty"
 			}
 			return "dev-" + m[1][:7] + dirty

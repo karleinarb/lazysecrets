@@ -69,11 +69,7 @@ func installHandler(cfg config.Config, configPath, term string) (string, string,
 	if _, err := launchCommand(cfg, configPath, term, exe, "lazysecrets://check"); err != nil {
 		return "", "", err
 	}
-	launch := []string{exe}
-	if configPath != defaultConfigPath() {
-		launch = append(launch, "--config", configPath)
-	}
-	launch = append(launch, "launch")
+	launch := append(append([]string{exe}, configArgs(configPath)...), "launch")
 	if term != "" {
 		launch = append(launch, "--terminal", term)
 	}
@@ -188,8 +184,14 @@ func launchCommand(cfg config.Config, configPath, term, exe, link string) ([]str
 // innerCommand runs lazysecrets on link, with the environment it needs.
 func innerCommand(configPath, exe, link string) []string {
 	inner := append(append([]string{"/usr/bin/env"}, linkhandler.Env(os.Getenv)...), exe)
-	if configPath != defaultConfigPath() {
-		inner = append(inner, "--config", configPath)
-	}
+	inner = append(inner, configArgs(configPath)...)
 	return append(inner, "open", link)
+}
+
+// configArgs passes the config files on, unless they're the default.
+func configArgs(configPath string) []string {
+	if configPath == defaultConfigPath() {
+		return nil
+	}
+	return []string{"--config", configPath}
 }

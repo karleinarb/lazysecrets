@@ -171,26 +171,22 @@ Flags:
 		return nil
 	}
 
-	var open, getRef *ref.Ref
+	sub := "" // the subcommand; "" browses
+	var subArgs []string
+	var open *ref.Ref
+	var getRef ref.Ref
 	var openAction string
-	var shareArgs, listArgs []string
-	printKeys := false
 	switch args := flag.Args(); {
-	case len(args) > 0 && args[0] == "share":
-		shareArgs = args[1:]
-		if len(shareArgs) == 0 {
-			shareArgs = []string{} // still sharing: says how
-		}
-	case len(args) > 0 && args[0] == "list":
-		listArgs = append([]string{}, args[1:]...) // not nil: listing
+	case len(args) > 0 && (args[0] == "share" || args[0] == "list"):
+		sub, subArgs = args[0], args[1:]
 	case len(args) == 1 && args[0] == "keybindings":
-		printKeys = true
+		sub = "keybindings"
 	case len(args) > 0 && args[0] == "get":
 		r, _, err := refArg("get", args[1:])
 		if err != nil {
 			return err
 		}
-		getRef = &r
+		sub, getRef = "get", r
 	case len(args) > 0 && args[0] == "handler":
 		return handler(*configPath, args[1:])
 	case len(args) > 0 && args[0] == "launch":
@@ -236,7 +232,7 @@ Flags:
 	if err := checkCommandKeys(&keymap, cfg.CustomCommands); err != nil {
 		return err
 	}
-	if printKeys {
+	if sub == "keybindings" {
 		fmt.Print(keymap.YAML())
 		return nil
 	}
@@ -264,25 +260,13 @@ Flags:
 	}
 	// timeoutFor is how long a request to a provider of kind k may take.
 	timeoutFor := func(k provider.Kind) time.Duration { return cmp.Or(timeouts[k], *timeout) }
-	if !set["clipboard-clear"] && cfg.Values.ClipboardClear != nil {
-		*clipClear = *cfg.Values.ClipboardClear
+	if !set["clipboard-clear"] {
+		*clipClear = valueOr(cfg.Values.ClipboardClear, *clipClear)
 	}
-	expiryDays := 30
-	if cfg.UI.ExpiryWarningDays != nil {
-		expiryDays = *cfg.UI.ExpiryWarningDays
-	}
-	revealTimeout := 60 * time.Second
-	if cfg.Values.RevealTimeout != nil {
-		revealTimeout = *cfg.Values.RevealTimeout
-	}
-	loadDelay := 150 * time.Millisecond
-	if cfg.UI.LoadDelay != nil {
-		loadDelay = *cfg.UI.LoadDelay
-	}
-	var updateEvery time.Duration // 0: the app's default, a day
-	if cfg.Updates.AutoCheckInterval != nil {
-		updateEvery = *cfg.Updates.AutoCheckInterval
-	}
+	expiryWarning := time.Duration(valueOr(cfg.UI.ExpiryWarningDays, 30)) * 24 * time.Hour
+	revealTimeout := valueOr(cfg.Values.RevealTimeout, 60*time.Second)
+	loadDelay := valueOr(cfg.UI.LoadDelay, 150*time.Millisecond)
+	updateEvery := valueOr(cfg.Updates.AutoCheckInterval, 0) // 0: the app's default, a day
 	if !set["icons"] {
 		switch {
 		case os.Getenv("LAZYSECRETS_ICONS") != "":
@@ -292,7 +276,17 @@ Flags:
 		}
 	}
 
-	recentIcon := cfg.UI.RecentIcon != nil && *cfg.UI.RecentIcon
+	recentIcon := valueOr(cfg.UI.RecentIcon, false)
+
+	startDir := *dir
+	if startDir == "" {
+		startDir, _ = os.Getwd()
+	}
+	// What was loaded last time.
+	cacheFile := ""
+	if d, err := config.CacheDir(); err == nil && !*demo && config.On(cfg.Storage.Cache) {
+		cacheFile = filepath.Join(d, "cache.json")
+	}
 
 	// Stars, notes and the layout. Demo mode keeps them in memory, so
 	// sample vaults never end up in the real file.
@@ -350,17 +344,9 @@ Flags:
 			providers = append(providers, dbx)
 		}
 		if config.On(pc.Repos.Enabled) {
-			start := *dir
-			if start == "" {
-				start, _ = os.Getwd()
-			}
-			roots := repo.DefaultRoots
-			if pc.Repos.Roots != nil {
-				roots = *pc.Repos.Roots
-			}
 			repos := repo.New(repo.Settings{
-				Dir: start, Paths: pc.Repos.Paths, Roots: roots, Starred: starredRepos(st),
-				Include: pc.Repos.Include, Exclude: pc.Repos.Exclude,
+				Dir: startDir, Paths: pc.Repos.Paths, Roots: valueOr(pc.Repos.Roots, repo.DefaultRoots),
+				Starred: starredRepos(st), Include: pc.Repos.Include, Exclude: pc.Repos.Exclude,
 			})
 			// The repo it started in (shown on top as Repo) and the
 			// others, checked for secret files in the background like
@@ -376,19 +362,14 @@ Flags:
 	// the standard logger, which would draw over the TUI.
 	log.SetOutput(io.Discard)
 
-	if getRef != nil {
+	switch sub {
+	case "get":
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(getRef.Kind))
 		defer cancel()
-		return get(ctx, providers, st, *getRef)
-	}
-	if listArgs != nil {
-		cachePath := ""
-		if d, err := config.CacheDir(); err == nil && !*demo && config.On(cfg.Storage.Cache) {
-			cachePath = filepath.Join(d, "cache.json")
-		}
-		return listCmd(providers, st, cachePath, timeoutFor, theme, *icons, recentIcon, time.Duration(expiryDays)*24*time.Hour, listArgs, os.Stdout)
-	}
-	if shareArgs != nil {
+		return get(ctx, providers, st, getRef)
+	case "list":
+		return listCmd(providers, st, cacheFile, timeoutFor, theme, *icons, recentIcon, expiryWarning, subArgs, os.Stdout)
+	case "share":
 		// The files from a repo, the key from whichever provider it's
 		// in: the longest timeout.
 		d := *timeout
@@ -397,7 +378,7 @@ Flags:
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), d)
 		defer cancel()
-		return shareFiles(ctx, providers, st, cfg.Sharing.Key, shareRules(cfg), shareArgs, os.Stdout)
+		return shareFiles(ctx, providers, st, cfg.Sharing.Key, shareRules(cfg), subArgs, os.Stdout)
 	}
 
 	// Links opened elsewhere (lazysecrets launch) can come here.
@@ -431,16 +412,10 @@ Flags:
 		onActive = srv.Touch
 	}
 
-	// What was loaded last time, and where it was left in this folder.
-	var cacheFile, placeDir string
+	// Where it was left in this folder.
+	placeDir := ""
 	if !*demo {
-		if d, err := config.CacheDir(); err == nil && config.On(cfg.Storage.Cache) {
-			cacheFile = filepath.Join(d, "cache.json")
-		}
-		placeDir = *dir
-		if placeDir == "" {
-			placeDir, _ = os.Getwd()
-		}
+		placeDir = startDir
 		if abs, err := filepath.Abs(placeDir); err == nil {
 			placeDir = abs
 		}
@@ -457,7 +432,7 @@ Flags:
 		NoHistory:      !config.On(cfg.Storage.History),
 		OnActive:       onActive,
 		RevealTimeout:  revealTimeout,
-		ExpiryWarning:  time.Duration(expiryDays) * 24 * time.Hour,
+		ExpiryWarning:  expiryWarning,
 		HideOnBlur:     config.On(cfg.Values.HideOnBlur),
 		HandlerSetup:   setup,
 		Updater:        updater(cfg.Updates.Sources),
@@ -488,6 +463,14 @@ Flags:
 		_ = fm.Persist() // a cache it couldn't save is no reason to fail
 	}
 	return err
+}
+
+// valueOr is *p, or def when p is nil (not set in the config).
+func valueOr[T any](p *T, def T) T {
+	if p == nil {
+		return def
+	}
+	return *p
 }
 
 // configFiles are the config files given, for the status pane: those

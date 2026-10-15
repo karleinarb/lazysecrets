@@ -35,14 +35,17 @@ func Dir(stateDir string) string {
 type Status struct {
 	PID        int       `json:"pid"`
 	LastActive time.Time `json:"lastActive"` // last key press or focus
-	// Reach is how readily it can be shown: 2 in view (outside tmux, or
-	// in a tmux session a client shows), 1 in a tmux session that a tmux
-	// client can be switched to, 0 not at all.
-	Reach int `json:"reach"`
+	Reach      int       `json:"reach"`      // how readily it can be shown: unreachable, switchable or inView
 	// App is the terminal app it would show in (macOS), preferring the
 	// app the link was clicked in.
 	App string `json:"app,omitempty"`
 }
+
+const (
+	unreachable = 0
+	switchable  = 1 // in a tmux session that a tmux client can be switched to
+	inView      = 2 // outside tmux, or in a tmux session a client shows
+)
 
 type request struct {
 	Op    string `json:"op"` // "status" or "open"
@@ -187,7 +190,7 @@ func Best(found []Found, front string, terminal bool) (Found, bool) {
 			best = f
 		}
 	}
-	return best, best.Reach > 0
+	return best, best.Reach > unreachable
 }
 
 // Open hands link, clicked in front, to f.

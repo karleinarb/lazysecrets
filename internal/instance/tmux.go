@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"cmp"
 	"os"
 	"os/exec"
 	"slices"
@@ -25,9 +26,10 @@ func tmux(args ...string) (string, error) {
 func inTmux() bool { return os.Getenv("TMUX") != "" && os.Getenv("TMUX_PANE") != "" }
 
 type client struct {
-	name, session, activity string // activity: Unix seconds
-	pid                     int
-	app                     string
+	name, session string
+	activity      int // Unix seconds
+	pid           int
+	app           string
 }
 
 // clients lists the tmux server's clients, the one last typed in first.
@@ -42,30 +44,31 @@ func clients() []client {
 		if len(f) < 4 {
 			continue
 		}
-		pid, err := strconv.Atoi(f[1])
-		if err != nil {
+		activity, err1 := strconv.Atoi(f[0])
+		pid, err2 := strconv.Atoi(f[1])
+		if err1 != nil || err2 != nil {
 			continue
 		}
-		cs = append(cs, client{name: f[2], session: f[3], activity: f[0], pid: pid, app: linkhandler.HostApp(pid)})
+		cs = append(cs, client{name: f[2], session: f[3], activity: activity, pid: pid, app: linkhandler.HostApp(pid)})
 	}
-	// Activity has the same width for centuries: strings compare like
-	// numbers.
-	slices.SortStableFunc(cs, func(a, b client) int { return strings.Compare(b.activity, a.activity) })
+	slices.SortStableFunc(cs, func(a, b client) int { return cmp.Compare(b.activity, a.activity) })
 	return cs
 }
 
 // place is where this instance would show: the tmux client (zero outside
-// tmux), the app, and reach: 2 already on screen there (outside tmux, or
-// a client on its session), 1 after switching a client, 0 nowhere.
+// tmux), the app, and its reach.
 func place(front string) (client, string, int) {
 	if !inTmux() {
-		return client{}, linkhandler.HostApp(os.Getpid()), 2
+		return client{}, linkhandler.HostApp(os.Getpid()), inView
 	}
 	session, err := tmux("display-message", "-p", "-t", os.Getenv("TMUX_PANE"), "#{session_name}")
 	if err != nil {
-		return client{}, "", 0
+		return client{}, "", unreachable
 	}
 	cs := clients()
+	if len(cs) == 0 {
+		return client{}, "", unreachable
+	}
 	// Best first: in the front app on its session, in the front app,
 	// on its session, any.
 	rank := func(c client) int {
@@ -78,20 +81,16 @@ func place(front string) (client, string, int) {
 		}
 		return r
 	}
-	var best client
-	found := false
-	for _, c := range cs {
-		if !found || rank(c) > rank(best) {
-			best, found = c, true
+	best := cs[0]
+	for _, c := range cs[1:] {
+		if rank(c) > rank(best) {
+			best = c
 		}
 	}
-	if !found {
-		return client{}, "", 0
-	}
 	if best.session == session {
-		return best, best.app, 2
+		return best, best.app, inView
 	}
-	return best, best.app, 1
+	return best, best.app, switchable
 }
 
 // Raise brings this instance into view for a link clicked in front: in
@@ -99,14 +98,14 @@ func place(front string) (client, string, int) {
 // then its app to the front, showing a hidden dropdown terminal.
 func Raise(front string) {
 	c, app, reach := place(front)
-	if reach == 0 {
+	if reach == unreachable {
 		return
 	}
 	if inTmux() {
 		pane := os.Getenv("TMUX_PANE")
 		_, _ = tmux("select-window", "-t", pane)
 		_, _ = tmux("select-pane", "-t", pane)
-		if reach == 1 {
+		if reach == switchable {
 			_, _ = tmux("switch-client", "-c", c.name, "-t", pane)
 		}
 	}

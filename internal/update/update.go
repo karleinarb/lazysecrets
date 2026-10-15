@@ -45,9 +45,9 @@ const (
 // DefaultServers are where releases are looked for, in order.
 var DefaultServers = []string{GitHubRepo, DefaultRepo}
 
-// latestTimeout bounds asking one server for the latest release, so a
-// server that's down leaves time for the next.
-const latestTimeout = 5 * time.Second
+// serverTimeout bounds asking one server for the latest release or its
+// checksums, so a server that's down leaves time for the next.
+const serverTimeout = 5 * time.Second
 
 // maxDownload bounds what's read from the server.
 const maxDownload = 200 << 20
@@ -151,7 +151,7 @@ func (c *Client) latest(ctx context.Context, repo string) (Release, error) {
 	if err != nil {
 		return Release{}, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, latestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, serverTimeout)
 	defer cancel()
 	// The recent releases in one request (per_page on GitHub, limit on
 	// Gitea), for their changelogs.
@@ -220,7 +220,7 @@ func (c *Client) Install(ctx context.Context, r Release, exe string) error {
 	if m := Managed(exe); m != "" {
 		return fmt.Errorf("%s is managed by %s: update it there", exe, m)
 	}
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" || runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
+	if (runtime.GOOS != "darwin" && runtime.GOOS != "linux") || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
 		return fmt.Errorf("no release build for %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	version := strings.TrimPrefix(r.Tag, "v")
@@ -270,7 +270,7 @@ func (c *Client) download(ctx context.Context, tag, file string) ([]byte, error)
 	var errs []error
 	for _, repo := range c.servers() {
 		base := strings.TrimSuffix(repo, "/") + "/releases/download/" + tag + "/"
-		sctx, cancel := context.WithTimeout(ctx, latestTimeout)
+		sctx, cancel := context.WithTimeout(ctx, serverTimeout)
 		sums, err := c.get(sctx, base+"checksums.txt", 1<<20)
 		cancel()
 		if err != nil {

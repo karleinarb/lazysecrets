@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -32,8 +33,12 @@ func updater(servers []string) *app.Updater {
 // updateCmd is lazysecrets update [--check]: the newer release's
 // changelog, then (unless --check) install it.
 func updateCmd(configPath string, args []string) error {
-	check := len(args) == 1 && args[0] == "--check"
-	if len(args) > 0 && !check {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	check := fs.Bool("check", false, "just say if there's a newer release")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
 		return errors.New("usage: lazysecrets update [--check]")
 	}
 	cfg, err := config.LoadAll(strings.Split(configPath, ","))
@@ -49,14 +54,14 @@ func updateCmd(configPath string, args []string) error {
 		return fmt.Errorf("looking for a newer lazysecrets: %w", err)
 	}
 	if !update.Newer(current, r.Tag) {
-		if !update.Newer(current, "v999.0.0") {
+		if strings.HasPrefix(current, "dev") {
 			return fmt.Errorf("this is a development build (%s); the latest release is %s: install it with install.sh, or go install …@%s", current, r.Tag, r.Tag)
 		}
 		fmt.Printf("lazysecrets %s is the latest (%s)\n", current, r.Tag)
 		return nil
 	}
 	fmt.Printf("lazysecrets %s is out (you have %s):\n\n%s\n\n", r.Tag, current, indent(r.Notes(current)))
-	if check {
+	if *check {
 		fmt.Println("lazysecrets update installs it.")
 		return nil
 	}
