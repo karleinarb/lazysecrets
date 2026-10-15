@@ -44,6 +44,7 @@ var Roles = map[string]string{
 	"repoColor":                       "repos and their secret files (SOPS)",
 	"springColor":                     "Spring Boot config files",
 	"composeColor":                    "Docker Compose files",
+	"dotnetColor":                     ".NET appsettings files",
 }
 
 // FromTheme returns the default styles with the theme's roles applied, and
@@ -105,6 +106,8 @@ func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 			st.Spring = v.fg(lipgloss.NewStyle())
 		case "composeColor":
 			st.Compose = v.fg(lipgloss.NewStyle())
+		case "dotnetColor":
+			st.Dotnet = v.fg(lipgloss.NewStyle())
 		}
 	}
 	return st, fg, nil

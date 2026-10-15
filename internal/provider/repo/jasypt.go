@@ -46,6 +46,9 @@ func jasyptPassword(file, name string) (password, from string, err error) {
 	}
 	setting, read, placeholder := jasyptEnv, plainValue, composePlaceholder // env files interpolate like compose
 	if t, ok := configTypeOf(file); ok {
+		if t.jasyptSetting == nil {
+			return "", "", fmt.Errorf("jasypt: no password: set $%s", jasyptEnv)
+		}
 		setting, read, placeholder = t.jasyptSetting(name), t.value, t.placeholder
 	}
 	v, err := read(file, setting)

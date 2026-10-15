@@ -145,8 +145,8 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 }
 
 // fileIcon is a repo file's icon, in its colour: a lock for an encrypted
-// one, a leaf for Spring config, a whale for compose, a file in the
-// warning colour for plain text; "" for other vaults, or without icons.
+// one, a leaf for Spring config, a whale for compose, .NET's for
+// appsettings, a file in the warning colour for plain text; "" for other vaults, or without icons.
 func (m Model) fileIcon(sty styles.Styles, c provider.Container) string {
 	if c.Source.Kind != provider.KindRepo {
 		return ""
@@ -157,6 +157,8 @@ func (m Model) fileIcon(sty styles.Styles, c provider.Container) string {
 		icon, style = m.icons.Spring, sty.Spring
 	case strings.HasPrefix(c.Detail, "compose"):
 		icon, style = m.icons.Compose, sty.Compose
+	case strings.HasPrefix(c.Detail, "dotnet"):
+		icon, style = m.icons.Dotnet, sty.Dotnet
 	case !strings.HasPrefix(c.Detail, "sops"):
 		icon, style = m.icons.PlainFile, sty.Warning
 	}

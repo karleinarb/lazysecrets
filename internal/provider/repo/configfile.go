@@ -22,14 +22,14 @@ type configType struct {
 	format func(file string) string // yaml, properties
 	parse  func(file string, b []byte) ([]configKey, error)
 	// jasyptSetting is the key that holds the Jasypt password for the
-	// key named name.
+	// key named name; nil when only $JASYPT_ENCRYPTOR_PASSWORD can.
 	jasyptSetting func(name string) string
 	// placeholder reads a value that only refers to another,
 	// ${DB_PASSWORD}: what it names, and its default if it has one.
 	placeholder func(v string) (name, def string, hasDef, ok bool)
 }
 
-var configTypes = []configType{springType, composeType}
+var configTypes = []configType{springType, composeType, dotnetType}
 
 func isConfig(f string) bool {
 	_, ok := configTypeOf(f)

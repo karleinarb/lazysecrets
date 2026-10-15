@@ -76,6 +76,7 @@ theme:
   repoColor: ["#c099ff"]
   springColor: ["#c3e88d"]               # Spring Boot config files
   composeColor: ["#82aaff"]              # Docker Compose files
+  dotnetColor: ["#c099ff"]               # .NET appsettings files
 ```
 
 A role lazysecrets doesn't know, a typo or one from a newer version, is

@@ -1,7 +1,7 @@
 // Package repo browses the encrypted secret files in git repositories:
 // a repo is a source, its secret files the containers (vault level), and
 // their keys the secrets. Secret files are SOPS files, plain env files and
-// config files: Spring Boot's and Docker Compose's (configfile.go).
+// config files: Spring Boot's, Docker Compose's and .NET's (configfile.go).
 //
 // Listing never decrypts: SOPS encrypts values only, so a file's keys and
 // metadata are read directly. A value is decrypted when it's revealed or
@@ -640,6 +640,7 @@ type lazysecretsFile struct {
 	SecretPatterns SecretPatterns `yaml:"secretPatterns"`
 	Spring         FileType       `yaml:"spring"`
 	Compose        FileType       `yaml:"compose"`
+	Dotnet         FileType       `yaml:"dotnet"`
 	Sharing        struct {
 		// Key is the link to the secret that encrypts the repo's
 		// shared env files (package share).
@@ -648,7 +649,7 @@ type lazysecretsFile struct {
 }
 
 func (f lazysecretsFile) types() map[string]FileType {
-	return map[string]FileType{"spring": f.Spring, "compose": f.Compose}
+	return map[string]FileType{"spring": f.Spring, "compose": f.Compose, "dotnet": f.Dotnet}
 }
 
 // ShareKey is the sharing.key of the repo's .lazysecrets.yaml, if any.

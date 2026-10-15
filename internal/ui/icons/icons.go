@@ -13,6 +13,7 @@ type Set struct {
 	PlainFile  string // a plain text secrets file (.env)
 	Spring     string // a Spring Boot config file
 	Compose    string // a Docker Compose file
+	Dotnet     string // a .NET appsettings file
 	Note       string // has a note (lazysecrets list)
 }
 
@@ -29,6 +30,7 @@ var NerdFont = Set{
 	PlainFile:  "\U000F0214", // md-file
 	Spring:     "\U000F032A", // md-leaf
 	Compose:    "\U000F0868", // md-docker
+	Dotnet:     "\U000F0AAE", // md-dot_net
 	Note:       "\U000F09ED",
 }
 

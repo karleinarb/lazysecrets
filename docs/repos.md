@@ -1,9 +1,10 @@
-# SOPS, .env, Spring and compose files in git repos
+# SOPS, .env, Spring, compose and .NET files in git repos
 
 lazysecrets shows git repositories under **Repos**: their
 [SOPS](https://github.com/getsops/sops)-encrypted files (YAML, JSON,
 `.env`, INI), plain env files, [Spring Boot config](#spring-boot-config)
-and [Docker Compose files](#docker-compose) as vaults, and the keys in them (`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
+[Docker Compose files](#docker-compose) and [.NET appsettings](#net-appsettings)
+as vaults, and the keys in them (`db.password`, `list[0]`) as secrets. A dot or bracket inside a key is
 escaped, `app\.name`, so it doesn't read as nesting.
 
 ## Which repos
@@ -47,7 +48,7 @@ Folders of dependencies and caches are never looked in, tracked or not:
 3. where the repo's `.sops.yaml` `creation_rules` say SOPS files go,
 4. the whole repo.
 
-`include`/`exclude` apply to env, Spring and compose files too.
+`include`/`exclude` apply to env, Spring, compose and .NET files too.
 
 ```yaml
 providers:
@@ -106,8 +107,8 @@ providers:
 ```
 
 A repo's `.lazysecrets.yaml` can set them too, the same way
-(`secretPatterns:`, `spring: secretPatterns:`, `compose:
-secretPatterns:`), for everyone. Each list
+(`secretPatterns:`, `spring:`, `compose:` or `dotnet: secretPatterns:`),
+for everyone. Each list
 comes from the first that sets it: the repo's for the type, the repo's,
 the config's for the type, the config's, the defaults.
 
@@ -133,6 +134,17 @@ without a value (`DB_PASSWORD:`, `- DB_PASSWORD`), taken from where
 compose runs, are marked as references; `${DB_PASSWORD:-x}` has its
 default in the file.
 
+## .NET appsettings
+
+`appsettings.json` and `appsettings.<Environment>.json`, tracked by git.
+Keys are named as .NET's configuration names them, sections joined by
+colons: `ConnectionStrings:Default`, `Servers:0:Name`. The same
+[secret patterns](#spring-boot-config) pick them, the rest hidden, with
+`dotnet: secretPatterns:` for .NET files' own; a connection string with
+`Password=` is listed by its value. An App Service Key Vault reference,
+`@Microsoft.KeyVault(…)`, is marked as a reference. Jasypt values decrypt
+with `$JASYPT_ENCRYPTOR_PASSWORD` only.
+
 ## Decrypting
 
 Listing never decrypts: SOPS and Jasypt encrypt values only, so keys and
@@ -151,7 +163,7 @@ repo's history, or easily could be.
 
 ### Jasypt
 
-A value like `ENC(...)` in a plain `.env`, Spring or compose file is
+A value like `ENC(...)` in a plain `.env`, Spring, compose or .NET file is
 [Jasypt](http://www.jasypt.org)'s, decrypted when it's revealed or copied
 with jasypt-spring-boot's default algorithm (3.0+:
 `PBEWITHHMACSHA512ANDAES_256`). The password is, as in Spring:

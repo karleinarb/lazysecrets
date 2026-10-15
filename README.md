@@ -23,7 +23,7 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
 - **Your way**: rebind any key, pick a theme, and add custom commands to run
   on a secret.
 - **Try it first**: `lazysecrets --demo` runs on built-in sample data.
-- **Sources**: Azure Key Vault, Databricks secret scopes, and SOPS, `.env`, Spring Boot and Docker Compose files in your git repos.
+- **Sources**: Azure Key Vault, Databricks secret scopes, and SOPS, `.env`, Spring Boot, Docker Compose and .NET appsettings files in your git repos.
 
 > **Early development:** expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
@@ -87,7 +87,7 @@ pickers and scripts: see [Integration](docs/integration.md#an-fzf-picker).
 - [Keys](docs/keys.md): every key, Go to, the layout, and rebinding keys
 - [Azure Key Vault](docs/azure.md): accounts, permissions, pinned vaults
 - [Databricks](docs/databricks.md): profiles and Key Vault-backed scopes
-- [SOPS, .env, Spring and compose files](docs/repos.md): which repos and files, decrypting
+- [SOPS, .env, Spring, compose and .NET files](docs/repos.md): which repos and files, decrypting
 - [Sharing](docs/sharing.md): links to secrets, encrypted env files, and
   opening links, also from the browser and chat
 - [Integration](docs/integration.md): how lazysecrets can integrate into other systems
