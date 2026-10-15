@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 // The help bar shows the keys that matter in the focused pane; ? lists all
-// of them in a menu (showKeybindings).
+// of them in a menu (showKeybindingsFor).
 
 // newHelp styles the help bar to read clearly: keys like labels elsewhere,
 // descriptions in the normal text colour, only the separators dimmed. The
@@ -84,11 +85,6 @@ func (c contextHelp) FullHelp() [][]key.Binding { return [][]key.Binding{c.Short
 
 var paneNames = [paneCount]string{"Sources", "Vaults", "Secrets", "Detail", "Status"}
 
-// showKeybindings opens the ? menu, like lazygit's: every binding with
-// what it does, the focused pane's first, filterable by key, description
-// and group. Enter runs the selected one.
-func (m *Model) showKeybindings() tea.Cmd { return m.showKeybindingsFor("") }
-
 // showKeybindingsFor opens the ? menu, like lazygit's: every binding with
 // what it does, filterable by key, description and group; enter runs the
 // selected one. Opened from the panes, it lists the focused pane's keys
@@ -154,7 +150,7 @@ func (m *Model) showKeybindingsFor(ctx string) tea.Cmd {
 	if cmds := m.commandsHere(); ctx == "" && len(cmds) > 0 {
 		opts = append(opts, option{label: "Custom commands", header: true})
 		for _, c := range cmds {
-			label := m.st.Label.Render(fmt.Sprintf("%-14s", c.Key)) + fmt.Sprintf("%-26s", cmpOr(c.Description, "command")) + m.st.Muted.Render("custom")
+			label := m.st.Label.Render(fmt.Sprintf("%-14s", c.Key)) + fmt.Sprintf("%-26s", cmp.Or(c.Description, "command")) + m.st.Muted.Render("custom")
 			opts = append(opts, option{label: label, tip: c.Command, run: func(m *Model) tea.Cmd { return m.startCommand(c) }})
 		}
 	}

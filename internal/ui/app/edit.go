@@ -242,7 +242,7 @@ func (m *Model) openInEditor(f provider.File, finished func(error) tea.Msg) tea.
 			return tea.QuitMsg{}
 		}
 	}
-	if editor := cmpOr(m.getenv("VISUAL"), m.getenv("EDITOR")); editor != "" {
+	if editor := cmp.Or(m.getenv("VISUAL"), m.getenv("EDITOR")); editor != "" {
 		// Through the shell, so EDITOR can carry arguments ("code -w").
 		args := append([]string{"-c", editor + ` "$@"`, "lazysecrets"}, editorArgs(editor, f)...)
 		m.flash = flash{}

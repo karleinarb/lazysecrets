@@ -174,7 +174,7 @@ func Read(r ref.Ref) (Sealed, error) {
 		return Sealed{}, errors.New("share link is from a newer lazysecrets: update it (lazysecrets update)")
 	}
 	n, size := binary.Uvarint(b[1:])
-	if size <= 0 || n > uint64(len(b)) {
+	if size <= 0 {
 		return Sealed{}, bad
 	}
 	rest := b[1+size:]

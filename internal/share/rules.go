@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Rules are what a key's value must be to share with it: random enough
@@ -40,7 +41,7 @@ func (r Rules) Check(key []byte) error {
 			kinds++
 		}
 	}
-	n := len([]rune(s))
+	n := utf8.RuneCountInString(s)
 	var has, needs []string
 	if n < r.MinLength {
 		has = append(has, fmt.Sprintf("%d characters", n))

@@ -991,11 +991,11 @@ func TestRebindingShowsEverywhere(t *testing.T) {
 	if !strings.Contains(scr, "z to reveal") || strings.Contains(scr, "space to reveal") {
 		t.Errorf("detail hint doesn't follow the binding:\n%s", scr)
 	}
-	if !strings.Contains(lastLine(scr), "z show") {
-		t.Errorf("help bar: %q", lastLine(scr))
+	if !strings.Contains(lastLines(scr, 1), "z show") {
+		t.Errorf("help bar: %q", lastLines(scr, 1))
 	}
 	d.keys("z")
-	if bar := lastLine(d.screen()); !strings.Contains(bar, "z hide") {
+	if bar := lastLines(d.screen(), 1); !strings.Contains(bar, "z hide") {
 		t.Errorf("help bar with the value shown: %q", bar)
 	}
 	d.keys("z")
@@ -1125,7 +1125,7 @@ func TestAccountPane(t *testing.T) {
 	if !strings.Contains(scr, "Alice Example") {
 		t.Errorf("account not shown:\n%s", scr)
 	}
-	bar := lastLine(scr)
+	bar := lastLines(scr, 1)
 	if !strings.Contains(bar, "copy") || strings.Contains(bar, "reveal") || strings.Contains(bar, "versions") {
 		t.Errorf("help bar: %q", bar)
 	}

@@ -2,6 +2,7 @@ package azure
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -134,12 +135,7 @@ func (v vaultInfo) attrs() []provider.Attr {
 	if v.endpoints > 0 {
 		add("private", fmt.Sprintf("%d endpoint%s", v.endpoints, map[bool]string{true: "s"}[v.endpoints > 1]))
 	}
-	keys := make([]string, 0, len(v.tags))
-	for k := range v.tags {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	for i, k := range keys {
+	for i, k := range slices.Sorted(maps.Keys(v.tags)) {
 		label := ""
 		if i == 0 {
 			label = "tags"

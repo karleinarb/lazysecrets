@@ -136,11 +136,11 @@ func TestLayoutIsSaved(t *testing.T) {
 func TestContextHelpBar(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
-	if bar := lastLine(d.screen()); !strings.Contains(bar, "S share") || !strings.HasSuffix(strings.TrimSpace(bar), "? help • q quit") || strings.Contains(bar, "space show") {
+	if bar := lastLines(d.screen(), 1); !strings.Contains(bar, "S share") || !strings.HasSuffix(strings.TrimSpace(bar), "? help • q quit") || strings.Contains(bar, "space show") {
 		t.Errorf("Sources help bar: %q", bar)
 	}
 	d.keys("3")
-	if bar := lastLine(d.screen()); !strings.Contains(bar, "s copy link") || !strings.Contains(bar, "S share") {
+	if bar := lastLines(d.screen(), 1); !strings.Contains(bar, "s copy link") || !strings.Contains(bar, "S share") {
 		t.Errorf("Secrets help bar: %q", bar)
 	}
 }
@@ -225,11 +225,6 @@ func TestKeyPress(t *testing.T) {
 	}
 }
 
-func lastLine(s string) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	return lines[len(lines)-1]
-}
-
 func TestNoHighlightWhileTerminalBlurred(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
@@ -264,7 +259,7 @@ func TestVersionInStatus(t *testing.T) {
 	if !strings.Contains(d.screen(), "[0] lazysecrets v0.1.0") {
 		t.Errorf("no version in the status pane:\n%s", d.screen())
 	}
-	if bar := lastLine(d.screen()); strings.Contains(bar, "v0.1.0") || !strings.Contains(bar, "? help • q quit") {
+	if bar := lastLines(d.screen(), 1); strings.Contains(bar, "v0.1.0") || !strings.Contains(bar, "? help • q quit") {
 		t.Errorf("help line %q", bar)
 	}
 }

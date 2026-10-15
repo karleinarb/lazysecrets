@@ -18,7 +18,7 @@ import (
 // It ends with a newline only when printing to a terminal, so command
 // substitution and pipes get the value exactly.
 func get(ctx context.Context, providers []provider.Provider, st *store.Store, r ref.Ref) error {
-	v, err := value(ctx, providers, st, r)
+	v, _, err := readKey(ctx, providers, st, r)
 	if err != nil {
 		return err
 	}
@@ -30,15 +30,9 @@ func get(ctx context.Context, providers []provider.Provider, st *store.Store, r 
 	return err
 }
 
-// value reads what r points at (ref.Read), with the account that last
-// read it first.
-func value(ctx context.Context, providers []provider.Provider, st *store.Store, r ref.Ref) (provider.SecretValue, error) {
-	v, _, err := readKey(ctx, providers, st, r)
-	return v, err
-}
-
-// readKey is value, also returning the version read. The account asked
-// for (--account) goes first, else the one that last read it.
+// readKey reads what r points at (ref.Read), and the version read. The
+// account asked for (--account) goes first, else the one that last read
+// it.
 func readKey(ctx context.Context, providers []provider.Provider, st *store.Store, r ref.Ref) (provider.SecretValue, string, error) {
 	key := r
 	key.Version = ""

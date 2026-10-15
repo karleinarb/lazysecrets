@@ -20,7 +20,7 @@ func TestValue(t *testing.T) {
 		"lazysecrets://databricks/adb-1111111111111111.11.azuredatabricks.net/app/storage-key": "storage-demo-key",
 	} {
 		r, _ := ref.Parse(link)
-		v, err := value(context.Background(), providers, st, r)
+		v, _, err := readKey(context.Background(), providers, st, r)
 		if err != nil || v.Reveal() != want {
 			t.Errorf("%s: %q, %v", link, v.Reveal(), err)
 		}
@@ -31,7 +31,7 @@ func TestValue(t *testing.T) {
 		"{{secrets/app/storage-key}}":                                          "names no workspace",
 	} {
 		r, _ := ref.Parse(link)
-		if _, err := value(context.Background(), providers, st, r); err == nil || !strings.Contains(err.Error(), wantErr) {
+		if _, _, err := readKey(context.Background(), providers, st, r); err == nil || !strings.Contains(err.Error(), wantErr) {
 			t.Errorf("%s: %v, want %q", link, err, wantErr)
 		}
 	}

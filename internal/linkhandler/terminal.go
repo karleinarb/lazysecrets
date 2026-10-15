@@ -144,7 +144,6 @@ func appleString(s string) string {
 // it.
 func Launch(argv []string) error {
 	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	if err := cmd.Start(); err != nil {
 		return err
 	}

@@ -42,9 +42,6 @@ func New() Clipboard {
 	}
 }
 
-// Native reports whether the system clipboard is used rather than OSC52.
-func (c Clipboard) Native() bool { return c.native }
-
 // Write puts s on the clipboard.
 func (c Clipboard) Write(s string) tea.Cmd {
 	if !c.native {

@@ -14,6 +14,7 @@ import (
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider/fake"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // jump opens the favourites list, filters it and jumps to the first match.
@@ -429,7 +430,7 @@ func TestStarIsPerAccount(t *testing.T) {
 	d.keys("F")
 	var labels []string
 	for _, o := range d.m.search.shown {
-		labels = append(labels, ansiStrip(o.label))
+		labels = append(labels, ansi.Strip(o.label))
 	}
 	if len(labels) != 1 || !strings.Contains(labels[0], "platform-prod · alice") {
 		t.Errorf("favourites should list alice's star only: %q", labels)

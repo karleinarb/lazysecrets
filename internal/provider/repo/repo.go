@@ -203,13 +203,11 @@ func parallel(n int, f func(i int)) {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, max(8, runtime.NumCPU()))
 	for i := range n {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			f(i)
-		}()
+		})
 	}
 	wg.Wait()
 }

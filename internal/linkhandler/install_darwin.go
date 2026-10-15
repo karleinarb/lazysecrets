@@ -116,15 +116,11 @@ func Check() string {
 	if err != nil {
 		return "" // can't tell: assume it works
 	}
-	if exe := strings.TrimSpace(string(out)); !exists(exe) {
+	exe := strings.TrimSpace(string(out))
+	if _, err := os.Stat(exe); err != nil {
 		return "lazysecrets:// links run " + exe + ", which no longer exists"
 	}
 	return ""
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 // Uninstall removes the applet and its registration.

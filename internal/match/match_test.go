@@ -99,9 +99,3 @@ func TestAnchorsOnTheName(t *testing.T) {
 		t.Errorf("password$: %v", got)
 	}
 }
-
-func TestEmpty(t *testing.T) {
-	if !Parse("  | ").Empty() || Parse("x").Empty() {
-		t.Error("Empty")
-	}
-}

@@ -301,15 +301,6 @@ func matchRanges(plain string, hits []int, style lipgloss.Style) []lipgloss.Rang
 	return out
 }
 
-// RuneIndexes converts byte offsets in s to rune offsets.
-func RuneIndexes(s string, bytes []int) []int {
-	out := make([]int, 0, len(bytes))
-	for _, b := range bytes {
-		out = append(out, utf8.RuneCountInString(s[:b]))
-	}
-	return out
-}
-
 // highlight returns the rune indexes to highlight in a row's plain text:
 // the filter hits, shifted to where the Filter text appears in the row.
 // It returns nil if the row doesn't contain the Filter text verbatim.

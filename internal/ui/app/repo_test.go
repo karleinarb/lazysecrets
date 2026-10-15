@@ -16,6 +16,7 @@ import (
 	"git.kebcloud.no/keb/lazysecrets/internal/provider/repo"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const sopsFile = `db:
@@ -225,9 +226,9 @@ func TestSearchAllRepos(t *testing.T) {
 	var got []string
 	for _, o := range d.m.search.shown {
 		if o.kind != provider.KindRepo {
-			t.Errorf("not a repo: %s", ansiStrip(o.label))
+			t.Errorf("not a repo: %s", ansi.Strip(o.label))
 		}
-		got = append(got, ansiStrip(o.label))
+		got = append(got, ansi.Strip(o.label))
 	}
 	if len(got) != 2 {
 		t.Errorf("want db.password in both repos: %v", got)

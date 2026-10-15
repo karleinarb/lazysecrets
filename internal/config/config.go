@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,17 +205,12 @@ func xdgDir(env, fallback string) (string, error) {
 	return filepath.Join(base, "lazysecrets"), nil
 }
 
-// Load reads path. A missing file is an empty config. Unknown keys are an
-// error, so typos don't silently do nothing.
-func Load(path string) (Config, error) {
-	return LoadAll([]string{path})
-}
-
 // LoadAll reads several config files in order, each on top of the ones
 // before, like lazygit's LG_CONFIG_FILE: a later file overrides the
 // settings it sets, and theme roles merge one by one. That lets an editor
 // plugin add a generated theme file to the user's own config. Missing
-// files are skipped.
+// files are skipped. Unknown keys are an error, so typos don't silently do
+// nothing.
 func LoadAll(paths []string) (Config, error) {
 	var c Config
 	keybinding := map[string]map[string][]string{}
@@ -229,9 +225,7 @@ func LoadAll(paths []string) (Config, error) {
 			if keybinding[ctx] == nil {
 				keybinding[ctx] = map[string][]string{}
 			}
-			for name, keys := range actions {
-				keybinding[ctx][name] = keys
-			}
+			maps.Copy(keybinding[ctx], actions)
 		}
 	}
 	c.Keybinding = keybinding

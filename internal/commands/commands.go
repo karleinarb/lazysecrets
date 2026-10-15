@@ -16,6 +16,7 @@
 package commands
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"strings"
@@ -60,10 +61,7 @@ var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // Validate checks a command from the config.
 func (c Command) Validate() error {
-	name := c.Description
-	if name == "" {
-		name = c.Command
-	}
+	name := cmp.Or(c.Description, c.Command)
 	switch {
 	case c.Command == "":
 		return fmt.Errorf("custom command %q has no command", c.Description)

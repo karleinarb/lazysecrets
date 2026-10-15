@@ -18,7 +18,7 @@ func write(t *testing.T, content string) string {
 }
 
 func TestLoad(t *testing.T) {
-	c, err := Load(write(t, `
+	c, err := LoadAll([]string{write(t, `
 ui:
   icons: false
   sourcesView: flat
@@ -36,7 +36,7 @@ providers:
   databricks:
     enabled: false
     hideProfiles: [test]
-`))
+`)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestLoadMissingAndEmpty(t *testing.T) {
 		"missing": filepath.Join(t.TempDir(), "nope.yaml"),
 		"empty":   write(t, ""),
 	} {
-		c, err := Load(path)
+		c, err := LoadAll([]string{path})
 		if err != nil || c.UI.Icons != nil || c.Values.ClipboardClear != nil {
 			t.Errorf("%s: %+v, %v", name, c, err)
 		}
@@ -85,7 +85,7 @@ func TestLoadRejectsMistakes(t *testing.T) {
 		"short keys": "sharing:\n  keyRules:\n    minLength: 8\n",
 		"classes":    "sharing:\n  keyRules:\n    minClasses: 5\n",
 	} {
-		if _, err := Load(write(t, content)); err == nil {
+		if _, err := LoadAll([]string{write(t, content)}); err == nil {
 			t.Errorf("%s: no error", name)
 		} else if !strings.Contains(err.Error(), "config.yaml") {
 			t.Errorf("%s: error doesn't name the file: %v", name, err)
@@ -132,18 +132,18 @@ theme:
 }
 
 func TestUpdates(t *testing.T) {
-	c, err := Load(write(t, "updates:\n  autoCheck: false\n  autoCheckInterval: 168h\n  sources: [https://git.example.com/team/lazysecrets]\n"))
+	c, err := LoadAll([]string{write(t, "updates:\n  autoCheck: false\n  autoCheckInterval: 168h\n  sources: [https://git.example.com/team/lazysecrets]\n")})
 	if err != nil || On(c.Updates.AutoCheck) || *c.Updates.AutoCheckInterval != 7*24*time.Hour || len(c.Updates.Sources) != 1 {
 		t.Errorf("updates = %+v, %v", c.Updates, err)
 	}
 }
 
 func TestLoadDelay(t *testing.T) {
-	c, err := Load(write(t, "ui:\n  loadDelay: 300ms\n"))
+	c, err := LoadAll([]string{write(t, "ui:\n  loadDelay: 300ms\n")})
 	if err != nil || c.UI.LoadDelay == nil || *c.UI.LoadDelay != 300*time.Millisecond {
 		t.Errorf("loadDelay = %v, %v", c.UI.LoadDelay, err)
 	}
-	if _, err := Load(write(t, "ui:\n  loadDelay: 1m\n")); err == nil {
+	if _, err := LoadAll([]string{write(t, "ui:\n  loadDelay: 1m\n")}); err == nil {
 		t.Error("a minute's delay accepted")
 	}
 }

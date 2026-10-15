@@ -66,7 +66,7 @@ func (m *Model) refreshShown(before []provider.Object) tea.Cmd {
 	if i < 0 || sameListing(before[i], s) {
 		return nil
 	}
-	m.detail.Refresh(s)
+	m.detail.SetDescribed(s)
 	uncache(m, m.cache.details, detailKey(s))
 	return m.describe(s)
 }

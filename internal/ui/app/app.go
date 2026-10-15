@@ -3,6 +3,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -654,7 +655,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case detailsMsg:
 		if msg.req == m.reqID[slotDetails] {
-			m.done(slotDetails)
+			m.cancelReq(slotDetails)
 		}
 		if errors.Is(msg.err, context.Canceled) || errors.Is(msg.err, context.DeadlineExceeded) {
 			delete(m.details, msg.key) // tried again when shown again
@@ -685,7 +686,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotContainers] {
 			break
 		}
-		m.done(slotContainers)
+		m.cancelReq(slotContainers)
 		if msg.err != nil {
 			m.noteErr(msg.err)
 			if src, ok := m.selectedSource(); ok {
@@ -703,7 +704,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotObjects] {
 			break
 		}
-		m.done(slotObjects)
+		m.cancelReq(slotObjects)
 		if errors.Is(msg.err, provider.ErrUnsupported) && m.versionsOf != nil {
 			m.flash = warning(fmt.Sprintf("versions aren't supported for %s", m.versionsOf.Container.Source.Kind))
 			m.closeVersions()
@@ -733,7 +734,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotValue] {
 			break
 		}
-		m.done(slotValue)
+		m.cancelReq(slotValue)
 		if msg.err != nil {
 			m.noteErr(msg.err)
 			m.logErrOf(msg.obj.Container.Name+"/"+msg.obj.Name, msg.err)
@@ -748,7 +749,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotVersions] {
 			break
 		}
-		m.done(slotVersions)
+		m.cancelReq(slotVersions)
 		// Errors and unsupported providers just leave the count out.
 		if msg.err == nil {
 			m.cache.objects[msg.key] = entry[[]provider.Object]{msg.items, m.now()}
@@ -760,7 +761,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotDescribe] {
 			break
 		}
-		m.done(slotDescribe)
+		m.cancelReq(slotDescribe)
 		if msg.err != nil {
 			m.noteErr(msg.err)
 			m.logErrOf(msg.obj.Container.Name+"/"+msg.obj.Name, msg.err)
@@ -775,7 +776,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.req != m.reqID[slotCopy] {
 			break
 		}
-		m.done(slotCopy)
+		m.cancelReq(slotCopy)
 		if msg.err != nil {
 			m.noteErr(msg.err)
 			m.flash = flash{text: "copy failed: " + msg.err.Error(), isErr: true}
@@ -887,7 +888,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (cmd tea.Cmd, quit bool) {
 	case key.Matches(msg, k.Quit):
 		return nil, true
 	case key.Matches(msg, k.Help):
-		return m.showKeybindings(), false
+		return m.showKeybindingsFor(""), false
 	case key.Matches(msg, k.Up):
 		m.move(-1)
 	case key.Matches(msg, k.Down):
@@ -1167,14 +1168,11 @@ func (m *Model) syncSelection() tea.Cmd {
 		if m.onLinks() {
 			m.showLinkedContainers()
 		} else if src, ok := m.selectedSource(); ok {
-			m.containers.Title = "[2] Vaults"
 			m.containers.Empty = "no vaults found"
 			switch src.Kind {
 			case provider.KindDatabricks:
-				m.containers.Title = "[2] Scopes"
 				m.containers.Empty = "no secret scopes"
 			case provider.KindRepo:
-				m.containers.Title = "[2] Files"
 				m.containers.Empty = "no SOPS or env files here (see docs/repos.md)"
 			}
 			cmds = append(cmds, m.showContainers(src, id))
@@ -1516,9 +1514,6 @@ func (m *Model) settled(ctx context.Context, load tea.Cmd) tea.Cmd {
 	}
 }
 
-// done releases the context of a completed request.
-func (m *Model) done(p slot) { m.cancelReq(p) }
-
 // loadSources starts a new generation of source loads, superseding any in
 // flight.
 func (m *Model) loadSources() tea.Cmd {
@@ -1638,7 +1633,7 @@ func (m *Model) describe(o provider.Object) tea.Cmd {
 func (m *Model) copyValue() tea.Cmd {
 	if m.focus == paneDetail && m.fields.Shown() {
 		if f, ok := m.fields.Selected(); ok {
-			return m.copyText(fieldName(f), cmpOr(f.URL, f.Value), false)
+			return m.copyText(fieldName(f), cmp.Or(f.URL, f.Value), false)
 		}
 		return nil
 	}

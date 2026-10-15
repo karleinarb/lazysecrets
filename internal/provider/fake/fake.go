@@ -48,19 +48,8 @@ func newProvider(kind provider.Kind, delay time.Duration) *Provider {
 
 func (p *Provider) Kind() provider.Kind { return p.kind }
 
-func (p *Provider) ID() string {
-	if p.id != "" {
-		return p.id
-	}
-	return string(p.kind)
-}
-
-func (p *Provider) Label() string {
-	if p.label != "" {
-		return p.label
-	}
-	return string(p.kind)
-}
+func (p *Provider) ID() string    { return cmp.Or(p.id, string(p.kind)) }
+func (p *Provider) Label() string { return cmp.Or(p.label, string(p.kind)) }
 
 // As renames the provider, to simulate several accounts of one kind.
 func (p *Provider) As(id, label string) *Provider {
@@ -252,11 +241,7 @@ func (p *Provider) fail(c provider.Container, err error, types ...provider.Objec
 	}
 }
 
-var (
-	base = time.Date(2026, 9, 1, 9, 30, 0, 0, time.UTC)
-	yes  = true
-	no   = false
-)
+var base = time.Date(2026, 9, 1, 9, 30, 0, 0, time.UTC)
 
 // ErrForbidden mimics a data-plane permission error from a backend.
 var ErrForbidden = errors.New("403 Forbidden: caller lacks permission to list secrets")
@@ -284,32 +269,32 @@ func Azure(delay time.Duration) *Provider {
 	prod := p.addSource("sub-prod", "platform-prod", "tenant: example.onmicrosoft.com")
 	kv := p.addContainer(prod, "kv-app-prod", "https://kv-app-prod.vault.azure.net", allTypes...)
 	dbPassword := p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "db-password", Version: "3f9c2a", Enabled: &yes, Updated: base,
+		Name: "db-password", Version: "3f9c2a", Enabled: new(true), Updated: base,
 		Expires: base.AddDate(1, 0, 0), ContentType: "text/plain",
 		Tags: map[string]string{"owner": "data", "env": "prod"}, Reference: secretRef("kv-app-prod", "db-password"),
 	}, "correct-horse-battery-staple")
 	p.versions[dbPassword.ID] = []provider.Object{
-		{Version: "3f9c2a", Enabled: &yes, Updated: base, Expires: base.AddDate(1, 0, 0), ContentType: "text/plain"},
-		{Version: "91d3e0", Enabled: &yes, Updated: base.AddDate(0, -6, 0), Expires: base.AddDate(0, -1, 0)},
-		{Version: "0a77c4", Enabled: &no, Updated: base.AddDate(-1, 0, 0)},
+		{Version: "3f9c2a", Enabled: new(true), Updated: base, Expires: base.AddDate(1, 0, 0), ContentType: "text/plain"},
+		{Version: "91d3e0", Enabled: new(true), Updated: base.AddDate(0, -6, 0), Expires: base.AddDate(0, -1, 0)},
+		{Version: "0a77c4", Enabled: new(false), Updated: base.AddDate(-1, 0, 0)},
 	}
 	p.values[dbPassword.ID+"@91d3e0"] = "previous-password"
 	p.values[dbPassword.ID+"@0a77c4"] = "original-password"
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "api-key", Version: "a17b04", Enabled: &yes, Updated: base.AddDate(0, -2, 0),
+		Name: "api-key", Version: "a17b04", Enabled: new(true), Updated: base.AddDate(0, -2, 0),
 		Reference: secretRef("kv-app-prod", "api-key"),
 	}, "sk_live_51HxDEMO0000000000000000")
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "legacy-token", Version: "0c11de", Enabled: &yes, Updated: base.AddDate(-1, 0, 0),
+		Name: "legacy-token", Version: "0c11de", Enabled: new(true), Updated: base.AddDate(-1, 0, 0),
 		Expires: base.AddDate(0, -3, 0), Reference: secretRef("kv-app-prod", "legacy-token"),
 	}, "deprecated")
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "smtp-password", Version: "7d2e90", Enabled: &no, Updated: base.AddDate(0, -2, 0),
+		Name: "smtp-password", Version: "7d2e90", Enabled: new(false), Updated: base.AddDate(0, -2, 0),
 		Reference: secretRef("kv-app-prod", "smtp-password"),
 	}, "smtp-demo-password")
 
 	p.add(kv, provider.TypeKey, provider.Object{
-		Name: "signing-key", Version: "5e21b7", Enabled: &yes, Updated: base.AddDate(0, -3, 0),
+		Name: "signing-key", Version: "5e21b7", Enabled: new(true), Updated: base.AddDate(0, -3, 0),
 		Attrs: []provider.Attr{
 			{Label: "key type", Value: "RSA 2048"},
 			{Label: "ops", Value: "sign, verify"},
@@ -317,7 +302,7 @@ func Azure(delay time.Duration) *Provider {
 		Reference: objectURL("kv-app-prod", "keys", "signing-key"),
 	}, demoPublicKey)
 	p.add(kv, provider.TypeKey, provider.Object{
-		Name: "data-encryption", Version: "c40f19", Enabled: &yes, Updated: base.AddDate(0, -5, 0),
+		Name: "data-encryption", Version: "c40f19", Enabled: new(true), Updated: base.AddDate(0, -5, 0),
 		Attrs: []provider.Attr{
 			{Label: "key type", Value: "EC P-256"},
 			{Label: "ops", Value: "wrapKey, unwrapKey"},
@@ -326,7 +311,7 @@ func Azure(delay time.Duration) *Provider {
 	}, demoPublicKey)
 
 	p.add(kv, provider.TypeCertificate, provider.Object{
-		Name: "app-tls", Version: "77e0aa", Enabled: &yes, Updated: base.AddDate(0, -1, 0),
+		Name: "app-tls", Version: "77e0aa", Enabled: new(true), Updated: base.AddDate(0, -1, 0),
 		Expires: base.AddDate(0, 11, 0), ContentType: "application/x-pem-file",
 		Attrs: []provider.Attr{
 			{Label: "subject", Value: "CN=app.example.com"},
@@ -338,7 +323,7 @@ func Azure(delay time.Duration) *Provider {
 		Reference: objectURL("kv-app-prod", "certificates", "app-tls"),
 	}, demoCert)
 	p.add(kv, provider.TypeCertificate, provider.Object{
-		Name: "old-tls", Version: "19ab3c", Enabled: &yes, Updated: base.AddDate(-1, 0, 0),
+		Name: "old-tls", Version: "19ab3c", Enabled: new(true), Updated: base.AddDate(-1, 0, 0),
 		Expires: base.AddDate(0, -6, 0), ContentType: "application/x-pkcs12",
 		Attrs: []provider.Attr{
 			{Label: "subject", Value: "CN=old.example.com"},
@@ -351,10 +336,10 @@ func Azure(delay time.Duration) *Provider {
 	shared := p.addContainer(prod, "kv-shared-prod", "https://kv-shared-prod.vault.azure.net", allTypes...)
 	// A key to share env files with (S → f): random, as sharing.keyRules wants.
 	p.add(shared, provider.TypeSecret, provider.Object{
-		Name: "env-share", Enabled: &yes, Updated: base, Reference: secretRef("kv-shared-prod", "env-share"),
+		Name: "env-share", Enabled: new(true), Updated: base, Reference: secretRef("kv-shared-prod", "env-share"),
 	}, "q8Zt3VwL1mXc7Rk2Pj9Ys4Hn6Bf0Ga5Ud+Te/OiWlE=")
 	p.add(shared, provider.TypeSecret, provider.Object{
-		Name: "smtp-password", Enabled: &yes, Updated: base, Reference: secretRef("kv-shared-prod", "smtp-password"),
+		Name: "smtp-password", Enabled: new(true), Updated: base, Reference: secretRef("kv-shared-prod", "smtp-password"),
 	}, "smtp-demo-password")
 	p.fail(shared, ErrForbiddenKeys, provider.TypeKey)
 
@@ -364,19 +349,19 @@ func Azure(delay time.Duration) *Provider {
 	dev := p.addSource("sub-dev", "platform-dev", "tenant: example.onmicrosoft.com")
 	kvDev := p.addContainer(dev, "kv-app-dev", "https://kv-app-dev.vault.azure.net", allTypes...)
 	p.add(kvDev, provider.TypeSecret, provider.Object{
-		Name: "db-password", Enabled: &yes, Updated: base, Reference: secretRef("kv-app-dev", "db-password"),
+		Name: "db-password", Enabled: new(true), Updated: base, Reference: secretRef("kv-app-dev", "db-password"),
 	}, "dev-password")
 	// Left behind, as dev vaults are: expired, disabled, or both.
 	p.add(kvDev, provider.TypeSecret, provider.Object{
-		Name: "stripe-webhook-secret", Enabled: &yes, Updated: base.AddDate(-1, 0, 0),
+		Name: "stripe-webhook-secret", Enabled: new(true), Updated: base.AddDate(-1, 0, 0),
 		Expires: base.AddDate(0, -2, 0), Reference: secretRef("kv-app-dev", "stripe-webhook-secret"),
 	}, "whsec_demo_expired")
 	p.add(kvDev, provider.TypeSecret, provider.Object{
-		Name: "test-user-password", Enabled: &no, Updated: base.AddDate(0, -5, 0),
+		Name: "test-user-password", Enabled: new(false), Updated: base.AddDate(0, -5, 0),
 		Reference: secretRef("kv-app-dev", "test-user-password"),
 	}, "disabled-demo-password")
 	p.add(kvDev, provider.TypeSecret, provider.Object{
-		Name: "vendor-token", Enabled: &no, Updated: base.AddDate(-2, 0, 0),
+		Name: "vendor-token", Enabled: new(false), Updated: base.AddDate(-2, 0, 0),
 		Expires: base.AddDate(-1, 0, 0), Reference: secretRef("kv-app-dev", "vendor-token"),
 	}, "expired-and-disabled")
 
@@ -395,17 +380,17 @@ func AzureOps(delay time.Duration) *Provider {
 	prod := p.addSource("sub-prod", "platform-prod", "tenant: example.onmicrosoft.com")
 	breakGlass := p.addContainer(prod, "kv-breakglass", "https://kv-breakglass.vault.azure.net", allTypes...)
 	p.add(breakGlass, provider.TypeSecret, provider.Object{
-		Name: "emergency-admin", Enabled: &yes, Updated: base.AddDate(0, -4, 0),
+		Name: "emergency-admin", Enabled: new(true), Updated: base.AddDate(0, -4, 0),
 		Expires: time.Now().AddDate(0, 0, 5).Truncate(24 * time.Hour), // soon, whenever the demo runs
 		Tags:    map[string]string{"owner": "ops"}, Reference: secretRef("kv-breakglass", "emergency-admin"),
 	}, "break-glass-demo-password")
 	shared := p.addContainer(prod, "kv-shared-prod", "https://kv-shared-prod.vault.azure.net", allTypes...)
 	p.add(shared, provider.TypeSecret, provider.Object{
-		Name: "smtp-password", Enabled: &yes, Updated: base, Reference: secretRef("kv-shared-prod", "smtp-password"),
+		Name: "smtp-password", Enabled: new(true), Updated: base, Reference: secretRef("kv-shared-prod", "smtp-password"),
 	}, "smtp-demo-password")
 	// Unlike the first account, ops may read keys here.
 	p.add(shared, provider.TypeKey, provider.Object{
-		Name: "backup-encryption", Version: "e9a102", Enabled: &yes, Updated: base.AddDate(0, -2, 0),
+		Name: "backup-encryption", Version: "e9a102", Enabled: new(true), Updated: base.AddDate(0, -2, 0),
 		Attrs:     []provider.Attr{{Label: "key type", Value: "RSA-HSM 3072"}, {Label: "ops", Value: "wrapKey, unwrapKey"}},
 		Reference: "https://kv-shared-prod.vault.azure.net/keys/backup-encryption",
 	}, demoPublicKey)
@@ -413,12 +398,12 @@ func AzureOps(delay time.Duration) *Provider {
 	sandbox := p.addSource("sub-ops", "ops-sandbox", "tenant: example.onmicrosoft.com")
 	kv := p.addContainer(sandbox, "kv-ops-tools", "https://kv-ops-tools.vault.azure.net", allTypes...)
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "pagerduty-token", Enabled: &yes, Updated: base.AddDate(0, -1, 0), Reference: secretRef("kv-ops-tools", "pagerduty-token"),
+		Name: "pagerduty-token", Enabled: new(true), Updated: base.AddDate(0, -1, 0), Reference: secretRef("kv-ops-tools", "pagerduty-token"),
 	}, "pd-demo-token")
 	// Expiring soon whenever the demo runs: the other dates are fixed,
 	// and would have passed. Tests use the first account only.
 	p.add(kv, provider.TypeSecret, provider.Object{
-		Name: "grafana-api-key", Enabled: &yes, Updated: base.AddDate(0, -11, 0),
+		Name: "grafana-api-key", Enabled: new(true), Updated: base.AddDate(0, -11, 0),
 		Expires: time.Now().AddDate(0, 0, 12).Truncate(24 * time.Hour), Reference: secretRef("kv-ops-tools", "grafana-api-key"),
 	}, "glsa_demo_expiring")
 

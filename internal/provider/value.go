@@ -21,8 +21,6 @@ func NewSecretValue(b []byte) SecretValue {
 // Reveal returns the plaintext. Call it only to display or copy the value.
 func (v SecretValue) Reveal() string { return string(v.b) }
 
-func (v SecretValue) Len() int { return len(v.b) }
-
 func (v SecretValue) String() string   { return masked }
 func (v SecretValue) GoString() string { return masked }
 

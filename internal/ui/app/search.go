@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -46,10 +45,6 @@ type crawlMsg struct {
 	err        error
 }
 
-func contextWithTimeout(d time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), d)
-}
-
 // searchEntries lists everything loaded: the sources (with how much of
 // each is loaded) and the vaults, scopes and secrets in them, each with
 // its source's row key as group.
@@ -67,7 +62,7 @@ func (m *Model) searchEntries() (sources, items []option) {
 		sort := strings.ToLower(strings.Join(path, "/")) + " " + account
 		es = append(es, entry{depth, sort,
 			option{label: m.pathLabel(kind, path, account), note: n.Note, star: key,
-				starAccount: providerOf(row), starred: n.StarredFor(providerOf(row)),
+				starAccount: cachefile.ProviderOf(row), starred: n.StarredFor(cachefile.ProviderOf(row)),
 				mark: mark, run: run, reload: reload, id: sort, group: row, kind: kind}})
 		return &es[len(es)-1].opt
 	}
@@ -134,8 +129,6 @@ func (c coverage) complete() bool {
 	return c.sourcesListed == c.sources && c.vaultsLoaded == c.vaults
 }
 
-func (m *Model) searchCoverage() coverage { return m.coverageOf(nil) }
-
 // providerFilter picks the providers a search or a load covers; nil is
 // all of them.
 type providerFilter func(provider.Provider) bool
@@ -148,7 +141,7 @@ func ofProvider(id string) providerFilter {
 	return func(p provider.Provider) bool { return p.ID() == id }
 }
 
-// coverageOf is searchCoverage for the providers in.
+// coverageOf is the coverage of the providers in.
 func (m *Model) coverageOf(in providerFilter) coverage {
 	var c coverage
 	for _, p := range m.providers {
@@ -183,7 +176,7 @@ func (m *Model) coverageOf(in providerFilter) coverage {
 
 // searchLines says what the search covers.
 func (m *Model) searchLines() []string {
-	c := m.searchCoverage()
+	c := m.coverageOf(nil)
 	switch {
 	case m.crawl.running:
 		return []string{m.st.Notice.Render(fmt.Sprintf("Loading… %d lists left; results appear as they arrive.",
@@ -210,11 +203,8 @@ func plural(n int, word string) string {
 	return fmt.Sprintf("%d %ss", n, word)
 }
 
-// startCrawl loads every unlisted subscription's vaults and every vault's
-// secrets not loaded yet.
-func (m *Model) startCrawl() tea.Cmd { return m.startCrawlOf(nil) }
-
-// startCrawlOf is startCrawl for the providers in.
+// startCrawlOf loads, for the providers in, every unlisted subscription's
+// vaults and every vault's secrets not loaded yet.
 func (m *Model) startCrawlOf(in providerFilter) tea.Cmd {
 	for _, p := range m.providers {
 		if in != nil && !in(p) {
@@ -301,7 +291,7 @@ func (m *Model) crawlCmd(job crawlJob) tea.Cmd {
 		src := *job.src
 		timeout := m.timeout.of(src.Kind)
 		return func() tea.Msg {
-			ctx, cancel := contextWithTimeout(timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 			items, err := p.Containers(ctx, src)
 			for i := range items {
@@ -314,7 +304,7 @@ func (m *Model) crawlCmd(job crawlJob) tea.Cmd {
 	p := m.providerFor(c.Source)
 	timeout := m.timeout.of(c.Source.Kind)
 	return func() tea.Msg {
-		ctx, cancel := contextWithTimeout(timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		items, err := p.Objects(ctx, c, provider.TypeSecret)
 		for i := range items {
@@ -395,10 +385,4 @@ func (m *Model) vaultMark(c provider.Container) string {
 		return m.st.Error.Render("✗")
 	}
 	return " "
-}
-
-// providerOf is the provider ID in a source row key.
-func providerOf(row string) string {
-	p, _ := splitSourceRow(row)
-	return p
 }

@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/panes"
@@ -433,7 +434,7 @@ func (m *Model) handleResolved(msg resolvedMsg) {
 // (ref.Ref.Account), if it's one of them.
 func preferredRow(r ref.Ref, choices []choice) (string, bool) {
 	for _, c := range choices {
-		if r.Account != "" && providerOf(c.sourceRow) == r.Account {
+		if r.Account != "" && cachefile.ProviderOf(c.sourceRow) == r.Account {
 			return c.sourceRow, true
 		}
 	}
@@ -686,7 +687,7 @@ func (m *Model) share(menu bool) tea.Cmd {
 		share := func(k string) func(*Model) tea.Cmd {
 			return func(m *Model) tea.Cmd { return m.shareContainer(c, k) }
 		}
-		opts := []option{option{key: "o", label: "Lazysecrets link", run: share("o")}}
+		opts := []option{{key: "o", label: "Lazysecrets link", run: share("o")}}
 		if c.Source.Kind == provider.KindAzure && m.objType != provider.TypeSecret {
 			opts = append(opts, option{key: "t", label: "Lazysecrets link to the " + tabLabels[m.objType] + " tab", run: share("t")})
 		}
@@ -714,7 +715,7 @@ func (m *Model) share(menu bool) tea.Cmd {
 			return func(m *Model) tea.Cmd { return m.shareObject(o, k) }
 		}
 		opts := []option{
-			option{key: "o", label: "Lazysecrets link", run: share("o")},
+			{key: "o", label: "Lazysecrets link", run: share("o")},
 		}
 		if o.Container.Source.Kind == provider.KindAzure {
 			opts = append(opts, option{key: "u", label: "Key Vault URL", run: share("u")})

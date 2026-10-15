@@ -77,17 +77,15 @@ func TestNotesOnRows(t *testing.T) {
 func TestWithNoteGivesWay(t *testing.T) {
 	t.Parallel()
 	st := styles.Default()
-	if got := withNote(st, "db-password", "prod SQL admin", 30); len([]rune(stripANSI(got))) != 30 ||
-		!strings.HasSuffix(stripANSI(got), "prod SQL admin") {
-		t.Errorf("fits: %q", stripANSI(got))
+	if got := withNote(st, "db-password", "prod SQL admin", 30); len([]rune(ansi.Strip(got))) != 30 ||
+		!strings.HasSuffix(ansi.Strip(got), "prod SQL admin") {
+		t.Errorf("fits: %q", ansi.Strip(got))
 	}
-	if got := stripANSI(withNote(st, "db-password", "prod SQL admin", 20)); !strings.HasPrefix(got, "db-password") ||
+	if got := ansi.Strip(withNote(st, "db-password", "prod SQL admin", 20)); !strings.HasPrefix(got, "db-password") ||
 		!strings.HasSuffix(got, "…") {
 		t.Errorf("tight: %q", got)
 	}
-	if got := stripANSI(withNote(st, "a-very-long-secret-name", "note", 20)); got != "a-very-long-secret-name" {
+	if got := ansi.Strip(withNote(st, "a-very-long-secret-name", "note", 20)); got != "a-very-long-secret-name" {
 		t.Errorf("no room: %q", got)
 	}
 }
-
-func stripANSI(s string) string { return ansi.Strip(s) }

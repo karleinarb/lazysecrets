@@ -203,7 +203,7 @@ func (m *Model) fillSearch(keep bool) {
 				id:    accountScope + p.ID(), kind: k, mark: m.coverageMark(ofProvider(p.ID())),
 			})
 			for _, o := range sources {
-				if providerOf(o.group) == p.ID() {
+				if cachefile.ProviderOf(o.group) == p.ID() {
 					o.label = "  " + o.label
 					scopes = append(scopes, o)
 				}
@@ -267,7 +267,7 @@ func (v *searchView) match() []option {
 	default:
 		account, ofAccount := v.scopeAccount()
 		for _, o := range v.items {
-			if sc.id == allSources || ofAccount && providerOf(o.group) == account || sc.group != "" && o.group == sc.group {
+			if sc.id == allSources || ofAccount && cachefile.ProviderOf(o.group) == account || sc.group != "" && o.group == sc.group {
 				cand = append(cand, o)
 			}
 		}
@@ -523,7 +523,7 @@ func (m *Model) searchLoads() tea.Cmd {
 		return m.startCrawlOf(v.scopeFilter())
 	}
 	if !v.onSource() {
-		return m.startCrawl()
+		return m.startCrawlOf(nil)
 	}
 	providerID, sourceID := splitSourceRow(sc.group)
 	for _, src := range m.sourceResults[providerID].sources {

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
+	"git.kebcloud.no/keb/lazysecrets/internal/expiry"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
@@ -134,10 +135,10 @@ func (m Model) objectRender() func(styles.Styles, provider.Object, int) string {
 		}
 		line = marks(sty, n, o.Container.Source.Provider, m.recentIcon, m.now()) + line
 		switch state, left := m.expiry(o); state {
-		case expired:
+		case expiry.Expired:
 			line += " " + sty.Error.Render("✗ expired")
-		case expiresSoon:
-			line += " " + sty.Warning.Render("⚠ "+daysLeft(left))
+		case expiry.Soon:
+			line += " " + sty.Warning.Render("⚠ "+expiry.Left(left))
 		}
 		return withNote(sty, line, n.Note, width)
 	}

@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
+	"git.kebcloud.no/keb/lazysecrets/internal/expiry"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 	"git.kebcloud.no/keb/lazysecrets/internal/ref"
 	"git.kebcloud.no/keb/lazysecrets/internal/ui/panes"
@@ -30,7 +31,7 @@ func (m Model) expiringItems() []expiringItem {
 			for _, c := range m.cache.containers[row].value {
 				for _, t := range c.ObjectTypes() {
 					for _, o := range m.cache.objects[cachefile.ObjectsKey(c, t)].value {
-						if state, _ := m.expiry(o); state != notExpiring {
+						if state, _ := m.expiry(o); state != expiry.None {
 							out = append(out, expiringItem{o, row})
 						}
 					}
@@ -51,11 +52,11 @@ func (m Model) expiringFields() []panes.Field {
 	var out []panes.Field
 	for _, it := range items {
 		state, left := m.expiry(it.o)
-		mark := "⚠ " + daysLeft(left)
-		if state == expired {
+		mark := "⚠ " + expiry.Left(left)
+		if state == expiry.Expired {
 			mark = "✗ expired"
 		}
-		f := panes.Field{Value: mark + "  " + it.o.Name + " · " + it.o.Container.Name, Err: state == expired, Row: it.row}
+		f := panes.Field{Value: mark + "  " + it.o.Name + " · " + it.o.Container.Name, Err: state == expiry.Expired, Row: it.row}
 		if r, err := ref.ForObject(it.o, ""); err == nil {
 			f.Link = r.String()
 		}

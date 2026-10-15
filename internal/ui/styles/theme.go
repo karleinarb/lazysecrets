@@ -3,8 +3,8 @@ package styles
 import (
 	"fmt"
 	"image/color"
+	"maps"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -51,12 +51,7 @@ var Roles = map[string]string{
 func FromTheme(theme map[string][]string) (Styles, color.Color, error) {
 	st := Default()
 	var fg color.Color
-	roles := make([]string, 0, len(theme))
-	for r := range theme {
-		roles = append(roles, r)
-	}
-	sort.Strings(roles)
-	for _, role := range roles {
+	for _, role := range slices.Sorted(maps.Keys(theme)) {
 		if _, ok := Roles[role]; !ok {
 			continue
 		}

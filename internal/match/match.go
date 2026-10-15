@@ -107,9 +107,6 @@ func parseTerm(tok string) (term, bool) {
 	return t, true
 }
 
-// Empty reports whether the query has no terms: everything matches.
-func (q Query) Empty() bool { return len(q.groups) == 0 }
-
 // Item is a row to match: Text is everything searched, and runes
 // NameStart up to NameEnd of it are the row's name (the rest is context,
 // like a path or a note). Without a name, nothing gets the name bonus.

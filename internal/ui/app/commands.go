@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -84,10 +85,7 @@ func (m *Model) showCommands() tea.Cmd {
 	}
 	var opts []option
 	for _, c := range cmds {
-		label := c.Description
-		if label == "" {
-			label = c.Command
-		}
+		label := cmp.Or(c.Description, c.Command)
 		if c.Key != "" {
 			label = m.st.Label.Render(fmt.Sprintf("%-8s", c.Key)) + label
 		}
@@ -122,7 +120,7 @@ func (m *Model) askPrompt(c commands.Command, it commands.Item, obj *provider.Ob
 	in.SetValue(p.Default)
 	in.CursorEnd()
 	m.prompt = &modal{
-		title: cmpOr(c.Description, "Command"), input: &in,
+		title: cmp.Or(c.Description, "Command"), input: &in,
 		submit: func(m *Model, text string) tea.Cmd {
 			it.Prompt[p.Name] = commands.Q(text)
 			return m.askPrompt(c, it, obj, i+1)
@@ -151,7 +149,7 @@ func (m *Model) confirmCommand(c commands.Command, it commands.Item, obj *provid
 	case strings.HasPrefix(c.Value, "env:"):
 		lines = append(lines, "", "It gets the value of "+string(it.Name)+" in $"+strings.TrimPrefix(c.Value, "env:")+".")
 	}
-	m.showMenu("Run "+cmpOr(c.Description, "command")+"?", lines, []option{
+	m.showMenu("Run "+cmp.Or(c.Description, "command")+"?", lines, []option{
 		{key: "y", label: "Run it", run: func(m *Model) tea.Cmd { return m.runCommand(c, rendered, obj) }},
 	})
 	return nil
@@ -177,7 +175,7 @@ func (m *Model) runCommand(c commands.Command, rendered string, obj *provider.Ob
 
 // execCommand runs the command as its output mode says.
 func (m *Model) execCommand(c commands.Command, rendered string, value provider.SecretValue) tea.Cmd {
-	shell := cmpOr(os.Getenv("SHELL"), "/bin/sh")
+	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 	setValue := func(cmd *exec.Cmd) {
 		switch {
 		case c.Value == "stdin":
@@ -195,7 +193,7 @@ func (m *Model) execCommand(c commands.Command, rendered string, value provider.
 		m.flash = flash{}
 		return tea.ExecProcess(cmd, func(err error) tea.Msg { return commandDoneMsg{cmd: c, err: err} })
 	}
-	m.flash = flash{text: "running " + cmpOr(c.Description, "command") + "…"}
+	m.flash = flash{text: "running " + cmp.Or(c.Description, "command") + "…"}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 		defer cancel()
@@ -219,7 +217,7 @@ func (m *Model) handleCommandValue(msg commandValueMsg) tea.Cmd {
 const maxOutputLines = 30
 
 func (m *Model) handleCommandDone(msg commandDoneMsg) {
-	name := cmpOr(msg.cmd.Description, "command")
+	name := cmp.Or(msg.cmd.Description, "command")
 	if msg.cmd.Out() != commands.Popup || m.prompt != nil || m.search != nil {
 		switch {
 		case msg.err != nil:
@@ -298,11 +296,7 @@ func (m *Model) commandItem(ctx string) (commands.Item, *provider.Object, bool) 
 	if r, err := ref.ForObject(o, version); err == nil {
 		it.Link = commands.Q(r.String())
 	}
-	if version != "" {
-		o.Version = version
-	} else {
-		o.Version = "" // the current value, like copying it
-	}
+	o.Version = version // "": the current value, like copying it
 	return it, &o, true
 }
 
@@ -311,11 +305,4 @@ func newTextInput(prompt string, width int) textinput.Model {
 	in.Prompt = prompt
 	in.SetWidth(width)
 	return in
-}
-
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }

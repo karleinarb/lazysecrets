@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/expiry"
-
 	"git.kebcloud.no/keb/lazysecrets/internal/provider"
 )
 
@@ -12,30 +11,19 @@ import (
 // list once they have expired (✗ expired) or will within the configured
 // warning period (⚠ 12d), and typing "expir" in the filter finds them.
 
-type expiryState = expiry.State
-
-const (
-	notExpiring = expiry.None
-	expiresSoon = expiry.Soon
-	expired     = expiry.Expired
-)
-
 // expiry tells whether o has expired or will within the warning period,
 // and how long it has left.
-func (m Model) expiry(o provider.Object) (expiryState, time.Duration) {
+func (m Model) expiry(o provider.Object) (expiry.State, time.Duration) {
 	return expiry.Of(o.Expires, m.now(), m.expiryWarning)
 }
 
 // expiryWord is matched by the filter: "expired" or "expiring".
 func (m Model) expiryWord(o provider.Object) string {
 	switch state, _ := m.expiry(o); state {
-	case expired:
+	case expiry.Expired:
 		return "expired"
-	case expiresSoon:
+	case expiry.Soon:
 		return "expiring"
 	}
 	return ""
 }
-
-// daysLeft is a short "12d", or "5h" on the last day.
-func daysLeft(d time.Duration) string { return expiry.Left(d) }

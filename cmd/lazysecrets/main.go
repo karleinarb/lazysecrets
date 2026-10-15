@@ -68,25 +68,18 @@ func checkCommandKeys(km *keys.Map, cmds []commands.Command) error {
 		if c.Key == "" {
 			continue
 		}
-		name := fmt.Sprintf("custom command %q", cmpOr(c.Description, c.Command))
+		name := fmt.Sprintf("custom command %q", cmp.Or(c.Description, c.Command))
 		if err := km.CheckExtra(c.Key, name); err != nil {
 			return err
 		}
 		for _, d := range cmds[:i] {
 			overlap := c.Context == d.Context || c.Context == commands.Global || d.Context == commands.Global
 			if d.Key == c.Key && overlap {
-				return fmt.Errorf("%s: %q is also the key of custom command %q", name, c.Key, cmpOr(d.Description, d.Command))
+				return fmt.Errorf("%s: %q is also the key of custom command %q", name, c.Key, cmp.Or(d.Description, d.Command))
 			}
 		}
 	}
 	return nil
-}
-
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }
 
 // refArg parses get's and open's arguments: a reference, and optionally

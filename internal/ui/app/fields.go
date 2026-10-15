@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
@@ -61,7 +62,7 @@ func (m *Model) syncFields() tea.Cmd {
 		case !ok:
 			m.fields.Show("", nil)
 		case m.selectedProblem() != "":
-			m.fields.Show(cmpOr(r.label, r.source.Name), m.problemFields(m.selectedProblem()))
+			m.fields.Show(cmp.Or(r.label, r.source.Name), m.problemFields(m.selectedProblem()))
 		case r.kind == rowGroup:
 			m.showAccount(r)
 		case r.kind == rowSource:
@@ -134,7 +135,7 @@ func (m Model) sourceFields(src provider.Source) []panes.Field {
 	add("web", src.URL)
 	if e, ok := m.cache.containers[sourceRowKey(src.Provider, src.ID)]; ok {
 		label := map[provider.Kind]string{provider.KindDatabricks: "scopes", provider.KindRepo: "files"}[src.Kind]
-		add(cmpOr(label, "vaults"), fmt.Sprint(len(e.value)))
+		add(cmp.Or(label, "vaults"), fmt.Sprint(len(e.value)))
 	}
 	return out
 }
@@ -158,7 +159,7 @@ func (m Model) containerFields(c provider.Container) []panes.Field {
 	case provider.KindRepo:
 		add("format", c.Detail)
 	}
-	add("source", cmpOr(c.Source.ProviderLabel, string(c.Source.Kind))+" / "+c.Source.Name)
+	add("source", cmp.Or(c.Source.ProviderLabel, string(c.Source.Kind))+" / "+c.Source.Name)
 	add("web", c.URL)
 	for _, t := range c.ObjectTypes() {
 		if e, ok := m.cache.objects[cachefile.ObjectsKey(c, t)]; ok {
@@ -221,5 +222,5 @@ func (m Model) problemFields(problem string) []panes.Field {
 // fieldName names a copied field: its label, or a row of several under
 // one label (a tag), its value.
 func fieldName(f panes.Field) string {
-	return cmpOr(f.Label, f.Value)
+	return cmp.Or(f.Label, f.Value)
 }

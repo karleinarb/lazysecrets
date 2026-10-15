@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
@@ -83,7 +84,7 @@ func (m Model) statusFields() []panes.Field {
 		}
 	}
 	// A release's rows open its release page.
-	version := panes.Field{Label: "version", Value: cmpOr(m.versionLabel(), "dev")}
+	version := panes.Field{Label: "version", Value: cmp.Or(m.versionLabel(), "dev")}
 	if strings.HasPrefix(version.Value, "v") {
 		version.URL = update.DefaultRepo + "/releases/tag/" + version.Value
 	}
@@ -159,7 +160,7 @@ func (m Model) accountStatus(p provider.Provider) string {
 		return r.err.Error()
 	}
 	noun := map[provider.Kind]string{provider.KindAzure: "subscription", provider.KindDatabricks: "workspace", provider.KindRepo: "repo"}[p.Kind()]
-	return plural(len(r.sources), cmpOr(noun, "source"))
+	return plural(len(r.sources), cmp.Or(noun, "source"))
 }
 
 // ago is a duration as people say it: "just now", "5m ago", "2h ago".

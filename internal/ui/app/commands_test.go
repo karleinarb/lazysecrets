@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/commands"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func commandDriver(t *testing.T, cmds ...commands.Command) *driver {
@@ -34,7 +35,7 @@ func TestCommandGetsValueOnInput(t *testing.T) {
 	// temporary path's length.
 	shown := ""
 	if d.m.prompt != nil {
-		shown = ansiStrip(strings.Join(d.m.prompt.lines, ""))
+		shown = ansi.Strip(strings.Join(d.m.prompt.lines, ""))
 	}
 	if !strings.Contains(scr, "Run Save it?") || !strings.Contains(shown, "db-password 'team a'") || !strings.Contains(shown, "on its input") {
 		t.Fatalf("no confirmation with the command %q:\n%s", shown, scr)

@@ -15,8 +15,8 @@ package keys
 
 import (
 	"fmt"
+	"maps"
 	"slices"
-	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -266,11 +266,11 @@ func (m *Map) Apply(cfg map[string]map[string][]string) error {
 		byName[a.Context+"."+a.Name] = a
 		contexts[a.Context] = true
 	}
-	for _, ctx := range sortedKeys(cfg) {
+	for _, ctx := range slices.Sorted(maps.Keys(cfg)) {
 		if !contexts[ctx] {
-			return fmt.Errorf("keybinding: unknown context %q (known: %s)", ctx, strings.Join(sortedKeys(contexts), ", "))
+			return fmt.Errorf("keybinding: unknown context %q (known: %s)", ctx, strings.Join(slices.Sorted(maps.Keys(contexts)), ", "))
 		}
-		for _, name := range sortedKeys(cfg[ctx]) {
+		for _, name := range slices.Sorted(maps.Keys(cfg[ctx])) {
 			a, ok := byName[ctx+"."+name]
 			if !ok {
 				return fmt.Errorf("keybinding.%s: unknown action %q (known: %s)", ctx, name, strings.Join(m.names(ctx), ", "))
@@ -289,16 +289,7 @@ func (m *Map) names(ctx string) []string {
 			out = append(out, a.Name)
 		}
 	}
-	sort.Strings(out)
-	return out
-}
-
-func sortedKeys[V any](set map[string]V) []string {
-	out := make([]string, 0, len(set))
-	for k := range set {
-		out = append(out, k)
-	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

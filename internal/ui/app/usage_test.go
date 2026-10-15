@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/store"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestRecentScope(t *testing.T) {
@@ -21,7 +22,7 @@ func TestRecentScope(t *testing.T) {
 	d.keys("R")
 	var recent []string
 	for _, o := range d.m.search.shown {
-		recent = append(recent, ansiStrip(o.label))
+		recent = append(recent, ansi.Strip(o.label))
 	}
 	if len(recent) < 2 || !strings.Contains(recent[0], "legacy-token") || !strings.Contains(recent[1], "api-key") {
 		t.Fatalf("want newest first: %q", recent)
@@ -31,7 +32,7 @@ func TestRecentScope(t *testing.T) {
 		t.Errorf("jumped to %q", s)
 	}
 	d.keys("F")
-	if len(d.m.search.shown) != 1 || !strings.Contains(ansiStrip(d.m.search.shown[0].label), "kv-shared-prod") {
+	if len(d.m.search.shown) != 1 || !strings.Contains(ansi.Strip(d.m.search.shown[0].label), "kv-shared-prod") {
 		t.Errorf("favourites: %d entries\n%s", len(d.m.search.shown), d.screen())
 	}
 }

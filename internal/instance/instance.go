@@ -9,7 +9,6 @@
 package instance
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -114,7 +113,7 @@ func (s *Server) handle(c net.Conn) {
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
 	var req request
-	if err := json.NewDecoder(bufio.NewReader(c)).Decode(&req); err != nil {
+	if err := json.NewDecoder(c).Decode(&req); err != nil {
 		return
 	}
 	var resp response

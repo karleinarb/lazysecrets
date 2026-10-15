@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"git.kebcloud.no/keb/lazysecrets/internal/cachefile"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider/fake"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -115,19 +116,19 @@ func TestSearchSourceNarrowsAndLoads(t *testing.T) {
 			t.Fatal("platform-dev not in sources")
 		}
 	}
-	if !strings.Contains(ansiStrip(d.m.search.scopes[d.m.search.src].mark), "○") {
+	if !strings.Contains(ansi.Strip(d.m.search.scopes[d.m.search.src].mark), "○") {
 		t.Errorf("unloaded source mark %q", d.m.search.scopes[d.m.search.src].mark)
 	}
 	if len(d.m.search.shown) != 0 {
 		t.Errorf("results not narrowed to platform-dev: %d", len(d.m.search.shown))
 	}
 	d.send(ctrl('r'))
-	if !strings.Contains(ansiStrip(d.m.search.scopes[d.m.search.src].mark), "●") {
+	if !strings.Contains(ansi.Strip(d.m.search.scopes[d.m.search.src].mark), "●") {
 		t.Errorf("loaded source mark %q", d.m.search.scopes[d.m.search.src].mark)
 	}
 	for _, o := range d.m.search.shown {
-		if !strings.Contains(ansiStrip(o.label), "platform-dev") {
-			t.Errorf("result from elsewhere: %q", ansiStrip(o.label))
+		if !strings.Contains(ansi.Strip(o.label), "platform-dev") {
+			t.Errorf("result from elsewhere: %q", ansi.Strip(o.label))
 		}
 	}
 	if len(d.m.search.shown) == 0 {
@@ -177,19 +178,17 @@ func TestStarFromSearch(t *testing.T) {
 	}
 }
 
-func ansiStrip(s string) string { return ansi.Strip(s) }
-
 func TestSearchStartsWhereYouAre(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("2", "j") // platform-prod / kv-shared-prod
 	d.openSearch()
 	v := d.m.search
-	scope := func() string { return ansiStrip(v.scopes[v.src].label) }
+	scope := func() string { return ansi.Strip(v.scopes[v.src].label) }
 	if scope() != "All" {
 		t.Errorf("opened on %q, want All", scope())
 	}
-	if v.res >= len(v.shown) || !strings.Contains(ansiStrip(v.shown[v.res].label), "kv-shared-prod") {
+	if v.res >= len(v.shown) || !strings.Contains(ansi.Strip(v.shown[v.res].label), "kv-shared-prod") {
 		t.Errorf("vault not under the cursor:\n%s", d.screen())
 	}
 	d.send(ctrl('s')) // narrows to the source, and back
@@ -233,13 +232,13 @@ func TestSearchNarrowsToAccount(t *testing.T) {
 		t.Errorf("no results in the account:\n%s", d.screen())
 	}
 	for _, o := range v.shown {
-		if providerOf(o.group) != header.provider {
-			t.Errorf("result from another account: %q", ansiStrip(o.label))
+		if cachefile.ProviderOf(o.group) != header.provider {
+			t.Errorf("result from another account: %q", ansi.Strip(o.label))
 		}
 	}
 	// The account's sources are under it, indented.
-	if next := v.scopes[v.src+1]; next.group == "" || providerOf(next.group) != header.provider || !strings.HasPrefix(ansiStrip(next.label), "  ") {
-		t.Errorf("after the account: %q", ansiStrip(next.label))
+	if next := v.scopes[v.src+1]; next.group == "" || cachefile.ProviderOf(next.group) != header.provider || !strings.HasPrefix(ansi.Strip(next.label), "  ") {
+		t.Errorf("after the account: %q", ansi.Strip(next.label))
 	}
 }
 
@@ -327,7 +326,7 @@ func TestSearchHighlightsMatches(t *testing.T) {
 		t.Fatal("no results")
 	}
 	o := d.m.search.shown[0]
-	plain := []rune(ansiStrip(o.label))
+	plain := []rune(ansi.Strip(o.label))
 	var got string
 	for _, h := range o.hits {
 		got += string(plain[h])
@@ -348,14 +347,14 @@ func TestHelpBarFollowsPopup(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t)
 	d.keys("F")
-	bar := lastLine(d.screen())
+	bar := lastLines(d.screen(), 1)
 	for _, want := range []string{"[ prev tab", "] next tab", "/ filter", "f star"} {
 		if !strings.Contains(bar, want) {
 			t.Errorf("browsing: help bar %q lacks %q", bar, want)
 		}
 	}
 	d.keys("/")
-	if bar := lastLine(d.screen()); !strings.Contains(bar, "ctrl+f star") || !strings.Contains(bar, "esc stop typing") {
+	if bar := lastLines(d.screen(), 1); !strings.Contains(bar, "ctrl+f star") || !strings.Contains(bar, "esc stop typing") {
 		t.Errorf("typing: help bar %q", bar)
 	}
 }
@@ -375,8 +374,8 @@ func TestHelpFromPopups(t *testing.T) {
 		if o.header {
 			sections = append(sections, o.label)
 		}
-		if strings.Contains(ansiStrip(o.label), "copy value") {
-			t.Errorf("pane key listed in Go to's help: %q", ansiStrip(o.label))
+		if strings.Contains(ansi.Strip(o.label), "copy value") {
+			t.Errorf("pane key listed in Go to's help: %q", ansi.Strip(o.label))
 		}
 	}
 	if strings.Join(sections, ",") != "Go to,While typing, after /" {
@@ -428,7 +427,7 @@ func TestGoToHelpBarEndsWithHelp(t *testing.T) {
 	t.Parallel()
 	d := newDriver(t) // 100 columns: Go to's keys don't all fit
 	d.keys("ctrl+s", "esc")
-	bar := strings.TrimSpace(lastLine(d.screen()))
+	bar := strings.TrimSpace(lastLines(d.screen(), 1))
 	if !strings.HasSuffix(bar, "? help") || !strings.Contains(bar, "…") {
 		t.Errorf("help bar %q", bar)
 	}
@@ -443,11 +442,11 @@ func TestLoadWithEmptyResults(t *testing.T) {
 	for d.m.search.src > 0 {
 		d.send(tea.KeyPressMsg{Code: tea.KeyUp})
 	}
-	for i := 0; !strings.Contains(ansiStrip(d.m.search.scope().label), "platform-dev"); i++ {
+	for i := 0; !strings.Contains(ansi.Strip(d.m.search.scope().label), "platform-dev"); i++ {
 		if i > len(d.m.search.scopes) {
 			var labels []string
 			for _, o := range d.m.search.scopes {
-				labels = append(labels, ansiStrip(o.label))
+				labels = append(labels, ansi.Strip(o.label))
 			}
 			t.Fatalf("no platform-dev scope: %q (at %d, results %v)", labels, d.m.search.src, d.m.search.results)
 		}
