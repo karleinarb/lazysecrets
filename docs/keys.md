@@ -49,7 +49,7 @@ match case exactly.
 | Key | Action |
 |---|---|
 | `space` | reveal / hide the selected value (public material for keys and certificates) |
-| `y` | copy the value without revealing it; cleared from the clipboard after 30s. On an Azure account's row: its object ID; in its pane, the selected field |
+| `y` | copy the value without revealing it. On an Azure account's row: its object ID; in its pane, the selected field |
 | `Y` | copy the reference (`@Microsoft.KeyVault(...)`, key/certificate URL, `{{secrets/scope/key}}`) |
 | `v` | versions of the selected item (Azure); `space`/`y`/`Y` then act on that version; `esc`, `⌫` or `v` to go back |
 | `o` | open the selected item in the browser (over SSH: copy the link) |
@@ -63,10 +63,8 @@ match case exactly.
 A revealed value is shown as it reads best: JSON indented, and PEM
 certificates as their subject, issuer, dates, names and thumbprint, with
 any other PEM block (a private key) named but not shown. `y` still copies
-it exactly as stored.
-
-A revealed value hides again after `values.revealTimeout` (60s) and
-when the terminal loses focus (`values.hideOnBlur`); see [config](config.md).
+it exactly as stored. It hides again after a while, and when the terminal
+loses focus ([config](config.md)).
 
 ## Stars and notes
 
@@ -75,8 +73,7 @@ when the terminal loses focus (`values.hideOnBlur`); see [config](config.md).
 | `f` | star the selected source, vault or secret: it gets a ★ and sorts first in its list |
 | `n` | write a short note on it, shown dimmed on its row and in the detail pane |
 
-A star belongs to the account you starred the item under; a note shows
-under every account. Both are kept in the [state file](config.md#state).
+Both are kept in the [state file](config.md#state).
 
 ## Go to
 
@@ -124,15 +121,16 @@ it's hidden.
 On top, the status pane (`0`) shows the version, a newer release and how
 your accounts are doing; `e` there opens your [config](config.md) in your
 editor, as in lazygit. Focused, the right pane lists more under the
-logo (when there's room): the version and updates (`U`), each account
-(`L` on one that needs it signs in), what's expiring (`enter` goes to
-it), this session's errors, newest first (what a pane showed, or the
-footer flashed before you moved on; not kept after quitting), the config,
-state and cache files (`e` opens one in your editor), and links to the
-docs, source, issues, releases and changelog (`o` opens one; on the
-version or update, its release), then the changelog of every release up
-to yours, built in so it needs no network: `/` filters it (`/fixed`,
-`/search`). `y` copies any row.
+logo; `y` copies any row:
+
+- the version and updates (`U`)
+- each account (`L` on one that needs it signs in)
+- what's expiring (`enter` goes to it)
+- this session's errors, newest first (not kept after quitting)
+- the config, state and cache files (`e` opens one in your editor)
+- links to the docs, source, issues, releases and changelog (`o` opens one)
+- the changelog of every release up to yours, built in: `/` filters it
+  (`/fixed`, `/search`)
 
 | Key | Action |
 |---|---|
@@ -141,9 +139,8 @@ to yours, built in so it needs no network: `/` filters it (`/fixed`,
 | `+` / `_` | zoom the focused pane: normal → half → full screen, and back |
 | `=` | reset the layout (divider, heights, zoom) |
 
-The divider and pane heights are remembered (zoom isn't). macOS uses
-ctrl+arrows for Mission Control and switching desktops by default, hence
-the `<` `>` `{` `}` alternatives.
+The divider and pane heights are remembered (zoom isn't). `<>{}` are for
+macOS, where ctrl+arrows switch desktops.
 
 ## Rebinding keys
 

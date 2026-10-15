@@ -34,7 +34,7 @@ tab-separated:
 | name | `platform-prod / kv-app-prod / db-password` |
 | status | why a vault or source couldn't be read, or that it has `expired` or `expires in 12d` (within `ui.expiryWarningDays`), or empty |
 | note | your note on it (`n` in lazysecrets), after a note icon (✎ without icons), or empty |
-| account | what it's listed through: an az account (`Azure:<user>/<tenant>`), `Databricks` or `Repos` |
+| account | what it's listed through: `Azure` (`Azure:<user>/<tenant>` with several az accounts), `Databricks` or `Repos` |
 | link | its `lazysecrets://` link |
 
 What's cached prints at once, then what loads follows as it arrives: read
@@ -47,7 +47,7 @@ so `^prod` finds names starting with prod.
 | Flag | |
 |---|---|
 | `--format json` | an object per line instead, for editor plugins (below) |
-| `--kind secret,vault` | only these kinds: `source`, `vault`, `secret`, `key`, `certificate`; lists only other kinds need aren't loaded |
+| `--kind secret,vault` | only these kinds: `source`, `vault` (also scopes and repo files), `secret`, `key`, `certificate`; lists they don't need aren't loaded |
 | `--cached` | only what's cached, at once: nothing is loaded from Azure or Databricks |
 | `--max-age 2m` | load cached lists older than this again |
 | `--errors=false` | leave out the vaults and sources it couldn't read |
@@ -77,12 +77,11 @@ may be added:
 | `expires` | when a secret, key or certificate expires, if it does (Azure) |
 | `enabled` | `false` for a disabled one; only where the provider says (Azure) |
 
-`lazysecrets open --action go --account <account> <link>` opens one in
-lazysecrets without asking what to do or which account, ending in the
-secrets list, like Go to.
+[`lazysecrets open --action go --account <account> <link>`](sharing.md#opening-a-link)
+opens one in lazysecrets without asking what to do or which account.
 
+### An fzf picker
 
-### Example usage with fzf
 ```sh
 lazysecrets list | fzf --ansi --delimiter='\t' --with-nth='2..-3' --nth='2..' --accept-nth=-1 \
   --header 'enter: link · ctrl-o: open · ctrl-y: copy value · ctrl-x: copy and close' \
@@ -90,5 +89,6 @@ lazysecrets list | fzf --ansi --delimiter='\t' --with-nth='2..-3' --nth='2..' --
   --bind 'ctrl-y:execute-silent(lazysecrets get --account {-2} {-1} | pbcopy)+change-header(Copied the value of {3})' \
   --bind 'ctrl-x:become(lazysecrets get --account {-2} {-1} | pbcopy)'
 ```
+
 ![fzf-example](assets/fzf-example.png)
 

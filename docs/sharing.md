@@ -7,10 +7,13 @@ permissions: the link names the item, never its value. Env files can
 also be [shared encrypted](#sharing-env-files), in the link itself.
 
 ```
+lazysecrets://azure/subscriptions/<subscription-id>                          subscription
 lazysecrets://azure/kv-app-prod.vault.azure.net                              vault
 lazysecrets://azure/kv-app-prod.vault.azure.net/keys                         vault, Keys tab
 lazysecrets://azure/kv-app-prod.vault.azure.net/secrets/db-password          secret
 lazysecrets://azure/kv-app-prod.vault.azure.net/secrets/db-password/91d3e0   one version
+lazysecrets://databricks/adb-1111111111111111.11.azuredatabricks.net         workspace
+lazysecrets://databricks/adb-1111111111111111.11.azuredatabricks.net/app     scope
 lazysecrets://databricks/adb-1111111111111111.11.azuredatabricks.net/app/storage-key
 lazysecrets://repo/git.example.com%2Fteam%2Finfra/secrets%2Fapp.yaml/db.password
 ```
@@ -102,8 +105,8 @@ it now and then: new links use the newest version.
 ## Opening a link
 
 - Paste it into lazysecrets, or press `ctrl+o`, which reads the clipboard
-  and fills in any reference it finds there. Key Vault URLs,
-  `@Microsoft.KeyVault(...)` and `{{secrets/scope/key}}` work too.
+  and fills in any reference it finds there. Key Vault URLs, Azure portal
+  links, `@Microsoft.KeyVault(...)` and `{{secrets/scope/key}}` work too.
 - `lazysecrets <link>` (or `lazysecrets open <link>`) in a terminal.
 - Click it anywhere, once the [link handler](#from-the-browser-and-chat) is
   set up.

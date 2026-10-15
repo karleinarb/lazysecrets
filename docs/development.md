@@ -12,7 +12,7 @@ repo, pick `kv-shared-prod / env-share` (the second account's) as the
 key, then paste the link back. The demo repos aren't on disk, so opening
 asks where to save, as for a repo you haven't cloned.
 
-A stripped binary is about 21 MB instead of 30 MB:
+A stripped binary is a third smaller:
 
 ```sh
 go build -trimpath -ldflags "-s -w" -o lazysecrets ./cmd/lazysecrets
@@ -35,10 +35,8 @@ subject, checked by `pr-title.yml`:
 | `fix` | a bug fix | Fixed |
 | `refactor`, `docs`, `test`, `ci`, `chore`, `build`, `style`, `revert` | everything users don't need to hear about | no |
 
-`feat!:` marks a breaking change, `feat(scope):` names a part. Brackets
-and a missing space work too: `[feat] x`, `[feat]: x` and `feat:x` all
-become `feat: x` in the changelog. `[skip changelog]` in the description
-leaves a pull request out.
+`feat!:` marks a breaking change, `feat(scope):` names a part.
+`[skip changelog]` in the description leaves a pull request out.
 
 CI (`ci.yml`) runs gofmt, vet, staticcheck, the tests and a build for each
 platform on pull requests into `main`. `main` is protected: a pull request

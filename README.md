@@ -7,24 +7,23 @@ A terminal UI for finding, reading and sharing secrets. Inspired by the fantasti
 ## Main features
 
 - **Read-only**: lazysecrets never creates, changes or deletes a secret.
-  That's by design and may stay that way.
 - **Zero setup**: uses the logins you already have (`az`, the Databricks
   CLI, `sops`, `git`). No config file needed.
 - **Search everything**: `ctrl+s` searches every source at once, with
   fzf-style matching.
 - **Share links**: Share `lazysecrets://` links with colleagues.
-- **Neovim integration**: via [lazysecrets.nvim](https://github.com/karleinarb/lazysecrets.nvim)
 - **Careful with values**: values stay hidden until you reveal them, and
   copied values are cleared from the clipboard after 30 seconds.
-- **Scriptable**: `lazysecrets get <link>` prints a value for scripts and
-  pipes.
+- **Scriptable**: `get`, `list` and `open` for scripts, fzf and editor
+  pickers; [lazysecrets.nvim](https://github.com/karleinarb/lazysecrets.nvim)
+  for Neovim.
 - **Favourites**: star the secrets you use most for easy access.
 - **Expiry warnings**: secrets, keys and certificates that expire soon are
   marked, listed together in the status pane.
 - **Your way**: rebind any key, pick a theme, and add custom commands to run
   on a secret.
 - **Try it first**: `lazysecrets --demo` runs on built-in sample data.
-- **Supported platforms**: Azure Key Vault, Databricks secret scopes, and SOPS and `.env` files in your git repos. 
+- **Sources**: Azure Key Vault, Databricks secret scopes, and SOPS and `.env` files in your git repos.
 
 > **Early development:** expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
@@ -45,9 +44,8 @@ Both approaches will install the latest release from [GitHub](https://github.com
 `sh -s -- v0.2.0` installs a given version, `LAZYSECRETS_INSTALL_DIR`
 somewhere else.
 
-lazysecrets looks for a newer release once a day: the footer then shows
-`↑ v0.2.0`, and `U` shows its changelog and updates in place (or run
-`lazysecrets update`).
+`U` (or `lazysecrets update`) updates in place when there's a newer
+release.
 
 Or build it yourself:
 `go install git.kebcloud.no/keb/lazysecrets/cmd/lazysecrets@latest`.
@@ -70,29 +68,19 @@ use most:
 | `l` / `h` | the details of what's selected / back |
 | `/` | filter the list you're in |
 | `space` | reveal / hide the value |
-| `y` | copy the value (cleared from the clipboard after 30s) |
+| `y` | copy the value |
 | `ctrl+s` | Go to: search everything and jump there |
 | `f` / `F` | star / your favourites |
 | `s` | copy a link to share |
 | `?` | every key, searchable |
 | `q` | quit |
 
-
 ## Integration
-Lazysecret let you integrate it into your workflows by `lazysecrets` `list`/`get`/`open`
 
-Here is an example of implementing a picker in `fzf`:
-```sh
-lazysecrets list | fzf --ansi --delimiter='\t' --with-nth='2..-3' --nth='2..' --accept-nth=-1 \
-  --header 'enter: link · ctrl-o: open · ctrl-y: copy value · ctrl-x: copy and close' \
-  --bind 'ctrl-o:become(lazysecrets open --action go --account {-2} {-1})' \
-  --bind 'ctrl-y:execute-silent(lazysecrets get --account {-2} {-1} | pbcopy)+change-header(Copied the value of {3})' \
-  --bind 'ctrl-x:become(lazysecrets get --account {-2} {-1} | pbcopy)'
-```
+`lazysecrets list`, `get` and `open` plug lazysecrets into fzf, editor
+pickers and scripts: see [Integration](docs/integration.md#an-fzf-picker).
 
 ![fzf-example](docs/assets/fzf-example.png)
-
-More defails in the [Integration](docs/integration.md) docs
 
 ## Docs
 

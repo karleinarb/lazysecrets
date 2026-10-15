@@ -16,7 +16,7 @@ A service principal is used instead when `AZURE_CLIENT_ID`,
 On an account's group row, the fourth pane shows who it signs in as: name,
 user, tenant, object ID, whether the session used MFA, directory roles
 (built-in ones by name) and its subscriptions, read from az's account list
-and the token lazysecrets already has: no requests of their own. `y` on
+and the token lazysecrets already has. `y` on
 the row copies the object ID, the one access policies and role
 assignments ask for; `l` goes into the pane, where `j`/`k` pick any
 field, `/` filters them (`/tenant`) and `y` copies the selected one.
@@ -67,9 +67,8 @@ fetched. `v` lists an item's versions. Items expiring within
 
 The status pane (`0`) lists them across every vault loaded, opened or
 cached, soonest first, and its line counts them (`⚠ 3 expiring`); `enter`
-on one goes to it. That makes no requests of its own: expiry dates come
-with the lists. It says how many vaults it covers; `ctrl+a` in search
-loads the rest.
+on one goes to it. Expiry dates come with the lists. It says how many
+vaults it covers; `ctrl+a` in search loads the rest.
 
 On a vault, the right pane shows its settings: resource group, location,
 SKU, whether access is by Azure roles or access policies, soft delete and

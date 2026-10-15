@@ -1,10 +1,11 @@
 # Config
 
 Optional, at `~/.config/lazysecrets/config.yaml` (or
-`$XDG_CONFIG_HOME/lazysecrets/config.yaml`, or `--config`). Flags override
-it. Unknown keys are an error, so typos don't go unnoticed. `e` on the
-status pane (`0`) opens it in your editor, as in lazygit (making it if
-it isn't there yet); changes apply when lazysecrets starts again.
+`$XDG_CONFIG_HOME/lazysecrets/config.yaml`, or `--config`). Flags (noted
+below) override it. Unknown keys are an error, so typos don't go
+unnoticed. `e` on the status pane (`0`) opens it in your editor, as in
+lazygit (making it if it isn't there yet); changes apply when lazysecrets
+starts again.
 
 ```yaml
 ui:
@@ -17,7 +18,7 @@ ui:
 values:
   revealTimeout: 60s     # hide a revealed value after this long; 0s keeps it shown
   hideOnBlur: true       # hide a revealed value when the terminal loses focus (tmux: focus-events on)
-  clipboardClear: 30s    # clear copied values from the clipboard after this long; 0s disables
+  clipboardClear: 30s    # clear copied values from the clipboard after this long; 0s disables; also --clipboard-clear
 storage:
   cache: true            # keep what was loaded (never values) for the next start
   history: true          # count uses of items for Recent (R)
@@ -28,32 +29,15 @@ updates:
     - https://github.com/karleinarb/lazysecrets
     - https://git.kebcloud.no/keb/lazysecrets
 providers:
-  timeout: 30s                           # per backend request; a provider's own timeout overrides it
-  azure:                                 # applies to every az account
-    enabled: true                        # default
+  timeout: 30s           # per backend request; a provider's own timeout overrides it; also --timeout
+  azure:                 # likewise databricks and repos; azure covers every az account
+    enabled: true        # default
     timeout: 30s
-    hideSubscriptions: [platform-mgmt]   # by name or ID
-    vaults:                              # listed under "Pinned vaults", for vaults
-      - https://kv-foo.vault.azure.net/  # you can read but not discover
-  databricks:
-    enabled: true
-    timeout: 30s
-    hideProfiles: [test]
-  repos:
-    enabled: true
-    timeout: 30s
-    roots: [~/git]
-    paths: [~/work/infra]
-    include: ["secrets/**"]
-    exclude: ["**/testdata/**"]
-sharing:               # sharing env files as encrypted links
-  key: https://kv-team.vault.azure.net/secrets/env-share  # or its lazysecrets:// link; for repos naming none
-  keyRules:            # what a key's value must be
-    minLength: 32      # characters, 16 at least
-    minClasses: 2      # kinds: lowercase, uppercase, digits, symbols
 ```
 
-More, each on its own page: [repos](repos.md) (`providers.repos`),
+More, each on its own page: [Azure](azure.md#vaults-you-cant-discover)
+(`providers.azure`), [Databricks](databricks.md) (`providers.databricks`),
+[repos](repos.md#which-files) (`providers.repos`),
 [sharing env files](sharing.md#sharing-env-files) (`sharing`), the
 [link handler](sharing.md#from-the-browser-and-chat) (`linkHandler`),
 [keybindings](keys.md#rebinding-keys) (`keybinding`) and
@@ -102,9 +86,8 @@ as boxes, turn them off with `ui.icons: false`.
 
 Several config files can be layered, later ones winning (theme roles and
 keybindings merge one by one), with a comma-separated `--config` or
-`LAZYSECRETS_CONFIG_FILE`, like lazygit's `LG_CONFIG_FILE`. An editor
-plugin can so add a generated theme file to your own config, the way
-snacks.nvim themes lazygit from Neovim's highlight groups:
+`LAZYSECRETS_CONFIG_FILE`, like lazygit's `LG_CONFIG_FILE`; e.g. your
+config plus an editor-generated theme:
 
 ```sh
 LAZYSECRETS_CONFIG_FILE=~/.config/lazysecrets/config.yaml,~/.cache/nvim/lazysecrets-theme.yml lazysecrets
@@ -117,11 +100,10 @@ Stars, notes, usage and the layout are kept in
 by you: one record per source, vault or secret, keyed by its
 `lazysecrets://` link, never with values. A star belongs to the account you
 starred the item under (a vault two of your accounts can see can be starred
-for one); a note describes the item, so it shows under every account. It's
-JSON so an editor plugin can read it with a built-in parser; several
-lazysecrets windows can save to it without losing each other's changes.
-One written by a newer lazysecrets is read but not saved to, with a
-warning, until you update.
+for one); a note describes the item, so it shows under every account.
+Several lazysecrets windows can save to it without losing each other's
+changes. One written by a newer lazysecrets is read but not saved to,
+with a warning, until you update.
 
 Revealing, copying, opening in the browser, sharing and jumping to an item
 count as using it: its record keeps when it was last used and how often,
@@ -157,8 +139,9 @@ until then it reuses the answer from the state file. Releases are
 published on GitHub and on git.kebcloud.no, and it asks them in that
 order, the next when one doesn't answer within 5 seconds;
 `updates.sources` lists others, such as a mirror of your own. Offline, or with
-every server down, it says nothing. A newer release shows in the footer, `v0.1.1 ↑ v0.2.0`; `U` (or
-`lazysecrets update --check`) shows what changed since your version, across the last 10 releases.
+every server down, it says nothing. A newer release shows in the status
+pane, `↑ v0.2.0`; `U` (or `lazysecrets update --check`) shows what
+changed since your version, across the last 10 releases.
 
 Updating (`u` there, or `lazysecrets update`) downloads the release for
 your OS and CPU from the first server that has it, checks it against

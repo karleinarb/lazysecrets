@@ -150,6 +150,7 @@ func run() error {
                                   for scripts: VAR=$(lazysecrets get <ref>)
   lazysecrets [flags] list [--kind secret,…] [--cached] [--max-age 2m] [--format text|json]
                           [--color always|never] [--icons=false] [--errors=false]
+                          [--stars=false] [--notes=false] [--recent] [--expiry=false]
                                   print every source, vault and secret it can
                                   find, one per line, for fzf and pickers:
                                   what's cached at once, then what loads

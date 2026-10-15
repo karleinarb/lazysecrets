@@ -100,13 +100,5 @@ sops 3.8 or later.
 
 ## Links
 
-`S` → `f` shares env files as an [encrypted link](sharing.md#sharing-env-files).
-
-Links name the repo by its git remote, so they open in a colleague's clone
-wherever it is:
-
-```
-lazysecrets://repo/git.example.com%2Fteam%2Finfra/secrets%2Fapp.yaml/db.password
-```
-
-See [sharing](sharing.md).
+Repo links name the repo by its git remote, so they open in a colleague's
+clone wherever it is ([sharing](sharing.md)).
