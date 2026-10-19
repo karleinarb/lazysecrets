@@ -2,6 +2,17 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.4.0 – 2026-10-19
+
+### Added
+
+- .NET appsettings files in repos ([#88](https://git.kebcloud.no/keb/lazysecrets/pulls/88)) ([a7db795](https://git.kebcloud.no/keb/lazysecrets/commit/a7db795cbec9425c743153a618dfe04741ac273e))
+- A running lazysecrets says when a newer one was installed over it ([#90](https://git.kebcloud.no/keb/lazysecrets/pulls/90)) ([6a7f53e](https://git.kebcloud.no/keb/lazysecrets/commit/6a7f53e2364695e71db8107a21feffe2ddf1a7b9))
+
+### Fixed
+
+- --dry-run in release script ([59c1222](https://git.kebcloud.no/keb/lazysecrets/commit/59c1222f4df04613fb6e945100151568550e70c0))
+
 ## v0.3.0 – 2026-10-15
 
 ### Added
