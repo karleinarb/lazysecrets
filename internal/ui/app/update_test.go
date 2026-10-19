@@ -130,3 +130,25 @@ func TestStartupWarning(t *testing.T) {
 		t.Errorf("no warning:\n%s", d.screen())
 	}
 }
+
+// A newer lazysecrets installed over the running one, from anywhere, is
+// said as an update from U is.
+func TestBinaryReplaced(t *testing.T) {
+	t.Parallel()
+	installed := ""
+	u := &Updater{
+		Latest:   func(context.Context) (update.Release, error) { return update.Release{}, errors.New("offline") },
+		Install:  func(context.Context, update.Release) error { return nil },
+		Replaced: func(context.Context) (string, bool) { return installed, installed != "" },
+	}
+	d := newDriverOpts(t, Options{Version: "v0.3.0", Updater: u})
+	d.send(binaryTickMsg{})
+	if strings.Contains(d.screen(), "restart") {
+		t.Fatalf("nothing installed, yet:\n%s", d.screen())
+	}
+	installed = "v0.3.1"
+	d.send(binaryTickMsg{})
+	if scr := d.screen(); !strings.Contains(scr, "lazysecrets v0.3.1 was installed · restart lazysecrets to use it") || !strings.Contains(scr, "→ v0.3.1 (restart)") {
+		t.Errorf("after an install:\n%s", scr)
+	}
+}

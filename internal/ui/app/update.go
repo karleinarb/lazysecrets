@@ -15,6 +15,44 @@ import (
 type Updater struct {
 	Latest  func(context.Context) (update.Release, error)
 	Install func(context.Context, update.Release) error
+	// Replaced says the version of a lazysecrets installed over the
+	// running one since it last looked; nil doesn't look.
+	Replaced func(context.Context) (version string, ok bool)
+}
+
+// binaryEvery is how often lazysecrets looks whether a newer binary was
+// installed over it: a stat.
+const binaryEvery = time.Minute
+
+type binaryTickMsg struct{}
+
+type replacedMsg struct{ version string }
+
+func (m Model) watchBinary() tea.Cmd {
+	if m.updater == nil || m.updater.Replaced == nil {
+		return nil
+	}
+	return tea.Tick(binaryEvery, func(time.Time) tea.Msg { return binaryTickMsg{} })
+}
+
+func (m Model) lookAtBinary() tea.Cmd {
+	replaced := m.updater.Replaced
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		v, _ := replaced(ctx)
+		return replacedMsg{version: v}
+	}
+}
+
+// handleReplaced says a newer lazysecrets was installed over this one,
+// as an update from U does, and looks again later.
+func (m *Model) handleReplaced(msg replacedMsg) tea.Cmd {
+	if msg.version != "" && msg.version != m.version && msg.version != m.updated {
+		m.updated = msg.version
+		m.flash = done("lazysecrets " + msg.version + " was installed · restart lazysecrets to use it")
+	}
+	return m.watchBinary()
 }
 
 // updateEvery is how often lazysecrets looks for a newer release on its

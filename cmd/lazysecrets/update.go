@@ -18,7 +18,7 @@ import (
 // default ones.
 func updater(servers []string) *app.Updater {
 	c := &update.Client{Servers: servers}
-	return &app.Updater{
+	u := &app.Updater{
 		Latest: c.Latest,
 		Install: func(ctx context.Context, r update.Release) error {
 			exe, err := update.Executable()
@@ -28,6 +28,10 @@ func updater(servers []string) *app.Updater {
 			return c.Install(ctx, r, exe)
 		},
 	}
+	if b, err := update.Running(); err == nil {
+		u.Replaced = b.Replaced
+	}
+	return u
 }
 
 // updateCmd is lazysecrets update [--check]: the newer release's

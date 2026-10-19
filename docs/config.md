@@ -154,3 +154,8 @@ lazysecrets that's running keeps working, and the next start is the new
 version. A binary a package manager owns (Homebrew, Nix, a distro
 package) is left to it. Development builds (`dev-…`) aren't offered
 releases.
+
+A lazysecrets that keeps running, like the one lazysecrets.nvim hides,
+looks every minute whether a newer one was installed over it, from
+anywhere (`install.sh`, `go install`, another lazysecrets), and says so
+in the status pane, `→ v0.3.1 (restart)`, until you restart it.

@@ -536,6 +536,7 @@ func (m Model) Init() tea.Cmd {
 	if m.fetchOnStart {
 		cmds = append(cmds, m.fetchLatest(false))
 	}
+	cmds = append(cmds, m.watchBinary())
 	if m.open != nil {
 		msg := openRefMsg{ref: *m.open, action: m.openAction}
 		cmds = append(cmds, func() tea.Msg { return msg })
@@ -599,6 +600,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case installedMsg:
 		m.handleInstalled(msg)
+
+	case binaryTickMsg:
+		cmds = append(cmds, m.lookAtBinary())
+
+	case replacedMsg:
+		cmds = append(cmds, m.handleReplaced(msg))
 
 	case currentMsg:
 		if msg.gen == m.sourcesGen {
