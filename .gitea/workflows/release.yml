@@ -78,7 +78,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: v2.18.3
+          version: v2.19.0
           args: release --clean --release-notes ${{ runner.temp }}/notes.md
         env:
           GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
