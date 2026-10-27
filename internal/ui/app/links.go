@@ -643,7 +643,11 @@ func (m *Model) advanceNav() bool {
 			}
 		}
 		if n.link {
-			m.focus = paneDetail // after: copying acts on the focused pane
+			// After: copying acts on the focused pane. The details describe
+			// the secret: when its lists were loaded already, the open got
+			// here in one update, and the Secrets pane was never the last
+			// left pane in focus.
+			m.lastLeft, m.focus = paneSecrets, paneDetail
 		}
 		return true
 	}

@@ -626,3 +626,17 @@ func TestShareWebPages(t *testing.T) {
 		t.Errorf("secret web page %q", got)
 	}
 }
+
+// A link whose lists are there already (a repo's files, or cached) gets
+// to the secret in one update: the details describe it all the same, not
+// the repo, with no need to press 3.
+func TestOpenLinkToRepoSecret(t *testing.T) {
+	t.Parallel()
+	r, _ := ref.Parse("lazysecrets://repo/github.com%2Facme%2Forders-service/docker-compose.yml/api.DB_PASSWORD")
+	d := newDriverOpts(t, Options{Open: &r}, fake.Repos())
+	d.keys("o")
+	o, ok := d.m.detail.Secret()
+	if _, _, s := d.selected(); s != "api.DB_PASSWORD" || d.m.focus != paneDetail || d.m.detailOf() != paneSecrets || !ok || o.Name != "api.DB_PASSWORD" {
+		t.Errorf("selected %q, focus %v describing %v, detail %q", s, d.m.focus, d.m.detailOf(), o.Name)
+	}
+}
