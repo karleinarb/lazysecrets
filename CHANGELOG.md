@@ -2,6 +2,12 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.4.1 – 2026-10-27
+
+### Fixed
+
+- An opened link ends on the secret's details, also when its lists were loaded ([#93](https://git.kebcloud.no/keb/lazysecrets/pulls/93)) ([831031b](https://git.kebcloud.no/keb/lazysecrets/commit/831031bb4863805abc7e272f40d5a1d576364a77))
+
 ## v0.4.0 – 2026-10-19
 
 ### Added
