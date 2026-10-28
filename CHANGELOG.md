@@ -2,6 +2,12 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.4.2 – 2026-10-28
+
+### Added
+
+- A link brings back the lazysecrets nvim hid; Azure shows its account ([#95](https://git.kebcloud.no/keb/lazysecrets/pulls/95)) ([99e6b7b](https://git.kebcloud.no/keb/lazysecrets/commit/99e6b7bcd84dab670427f38fa58e36c6dd5cd02a))
+
 ## v0.4.1 – 2026-10-27
 
 ### Fixed
