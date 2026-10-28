@@ -5,8 +5,9 @@ it reuses it.
 
 ## Accounts
 
-Every account signed in to az gets its own group in the Sources pane
-(`az login` again with another account to add one), and each account's
+Every account signed in to az gets its own group in the Sources pane,
+named for it, `Azure · alice` (`az login` again with another account to
+add one), and each account's
 vaults are read with that account. A subscription several accounts can see
 is listed under each, since their permissions can differ.
 

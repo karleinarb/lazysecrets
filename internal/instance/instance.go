@@ -123,6 +123,9 @@ func (s *Server) handle(c net.Conn) {
 	switch req.Op {
 	case "status":
 		_, app, reach := place(req.Front)
+		if nvimState(context.Background()) == "busy" {
+			reach = unreachable // a link would interrupt you: it opens elsewhere
+		}
 		s.mu.Lock()
 		resp.Status = Status{PID: os.Getpid(), LastActive: s.active, Reach: reach, App: app}
 		s.mu.Unlock()

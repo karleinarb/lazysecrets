@@ -181,10 +181,9 @@ func NewAccounts(s Settings) ([]*Provider, error) {
 		if i > 0 {
 			settings.Vaults = nil
 		}
-		label := ""
-		if len(accounts) > 1 {
-			label = string(provider.KindAzure) + " · " + labels[i]
-		}
+		// Named for its account, also when it's the only one: which
+		// account lazysecrets sees Azure through is worth seeing.
+		label := string(provider.KindAzure) + " · " + labels[i]
 		cred := authCredential{
 			cred:    newCLICredential(a.user, a.tenant, func() ([]account, error) { return readAccounts(path) }),
 			login:   []string{"az", "login", "--tenant", a.tenant},
@@ -195,9 +194,9 @@ func NewAccounts(s Settings) ([]*Provider, error) {
 			return nil, err
 		}
 		p.account = &accountDetails{account: a, claims: cred.cred.(*cliCredential).claims}
-		if label != "" {
+		p.label = label
+		if len(accounts) > 1 { // one keeps the plain ID its stars and cache are under
 			p.id = string(provider.KindAzure) + ":" + a.user + "/" + a.tenant
-			p.label = label
 		}
 		out = append(out, p)
 	}

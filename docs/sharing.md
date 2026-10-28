@@ -177,6 +177,11 @@ linkHandler:
   a hidden dropdown terminal (kitty's quick access terminal) is shown.
   With none running, a new window opens.
 
+- **Hidden in nvim** ([lazysecrets.nvim](https://github.com/karleinarb/lazysecrets.nvim)
+  hides it when you leave its window): it's brought back, unless nvim is
+  in the middle of something a window popping up would break (typing, a
+  command, a picker); then it counts as not running.
+
 The link is then offered as if pasted. `linkHandler.reuse: false` always
 opens a new window.
 

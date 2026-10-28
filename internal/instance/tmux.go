@@ -2,6 +2,7 @@ package instance
 
 import (
 	"cmp"
+	"context"
 	"os"
 	"os/exec"
 	"slices"
@@ -101,6 +102,7 @@ func Raise(front string) {
 	if reach == unreachable {
 		return
 	}
+	nvimReveal(context.Background())
 	if inTmux() {
 		pane := os.Getenv("TMUX_PANE")
 		_, _ = tmux("select-window", "-t", pane)
