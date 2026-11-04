@@ -1,8 +1,9 @@
 # git-cliff (https://git-cliff.org) builds CHANGELOG.md and the release
 # notes from the commits on main. Pull requests are squash-merged, so each
 # one is a single commit whose message is the PR title: a conventional one
-# (feat: …, fix: …, perf: …) puts it in the changelog, anything else
-# (chore, ci, docs, refactor, test, …) leaves it out.
+# (feat: …, fix: …, perf: …) puts it in the changelog, and so does a
+# dependency update Renovate marks [security]; anything else (chore, ci,
+# docs, refactor, test, …) leaves it out.
 #
 #   git cliff --unreleased        # what the next release would say
 
@@ -24,7 +25,7 @@ Hello world 👋
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | striptags | trim }}
 {% for commit in commits %}
-- {% if commit.breaking %}**Breaking:** {% endif %}{{ commit.message | split(pat="\n") | first | upper_first | trim }} \
+- {% if commit.breaking %}**Breaking:** {% endif %}{{ commit.message | split(pat="\n") | first | replace(from=" [security]", to="") | upper_first | trim }} \
 ([{{ commit.id | truncate(length=7, end="") }}](https://git.kebcloud.no/keb/lazysecrets/commit/{{ commit.id }}))\
 {% endfor %}
 {% endfor %}\n
@@ -65,5 +66,6 @@ commit_parsers = [
   { message = "^feat", group = "<!-- 0 -->Added" },
   { message = "^perf", group = "<!-- 1 -->Changed" },
   { message = "^fix", group = "<!-- 2 -->Fixed" },
+  { message = "\\[security\\]", group = "<!-- 3 -->Security" },
   { message = ".*", skip = true },
 ]
