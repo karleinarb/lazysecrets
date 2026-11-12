@@ -2,11 +2,21 @@
 
 Every release of lazysecrets, newest first.
 
+## v0.4.3 – 2026-11-12
+
+### Security
+
+- Update module golang.org/x/crypto to v0.59.0 ([#101](https://git.kebcloud.no/keb/lazysecrets/pulls/101)) ([dd80607](https://git.kebcloud.no/keb/lazysecrets/commit/dd80607d0b13eec6a4288882f7d7f29601c8cea3))
+
 ## v0.4.2 – 2026-10-28
 
 ### Added
 
 - A link brings back the lazysecrets nvim hid; Azure shows its account ([#95](https://git.kebcloud.no/keb/lazysecrets/pulls/95)) ([99e6b7b](https://git.kebcloud.no/keb/lazysecrets/commit/99e6b7bcd84dab670427f38fa58e36c6dd5cd02a))
+
+### Security
+
+- Update module golang.org/x/net to v0.62.0 ([#94](https://git.kebcloud.no/keb/lazysecrets/pulls/94)) ([677bba4](https://git.kebcloud.no/keb/lazysecrets/commit/677bba4c4ab4102d585befc232e121d389b95935))
 
 ## v0.4.1 – 2026-10-27
 
@@ -78,6 +88,13 @@ Every release of lazysecrets, newest first.
 
 - `e` on the status pane edits the config ([#55](https://git.kebcloud.no/keb/lazysecrets/pulls/55)) ([2044341](https://git.kebcloud.no/keb/lazysecrets/commit/2044341b20d795fa7cadcabb9514631990993e0a))
 - Share env files as encrypted links ([#54](https://git.kebcloud.no/keb/lazysecrets/pulls/54)) ([4377eb9](https://git.kebcloud.no/keb/lazysecrets/commit/4377eb98bf0dd523d5c4371bf84668412053290e))
+
+### Security
+
+- Update module go.opentelemetry.io/otel to v1.41.0 ([#42](https://git.kebcloud.no/keb/lazysecrets/pulls/42)) ([915d8bf](https://git.kebcloud.no/keb/lazysecrets/commit/915d8bf3bd081fccbfe810ce263d3b6de40d4b8e))
+- Update module go.opentelemetry.io/otel to v1.42.0 ([#46](https://git.kebcloud.no/keb/lazysecrets/pulls/46)) ([f19ac78](https://git.kebcloud.no/keb/lazysecrets/commit/f19ac7845a666395f82517299013ec1116f156c1))
+- Update security fixes ([#47](https://git.kebcloud.no/keb/lazysecrets/pulls/47)) ([3013d62](https://git.kebcloud.no/keb/lazysecrets/commit/3013d622e4220fcb587087af338f6721bdfaeed1))
+- Update module google.golang.org/grpc to v1.83.2 ([#48](https://git.kebcloud.no/keb/lazysecrets/pulls/48)) ([00924a4](https://git.kebcloud.no/keb/lazysecrets/commit/00924a4a1ef3681b6a11abeaf58bfe4a262c5753))
 
 ## v0.1.0 – 2026-10-12
 
