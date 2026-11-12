@@ -20,7 +20,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f
 	github.com/databricks/databricks-sdk-go v0.195.0
 	github.com/junegunn/fzf v0.74.5
-	go.yaml.in/yaml/v3 v3.0.6
+	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/mod v0.42.0
 	golang.org/x/term v0.48.0
 	gopkg.in/ini.v1 v1.67.3

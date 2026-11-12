@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Docker Compose files: compose.yaml, docker-compose.yml and their

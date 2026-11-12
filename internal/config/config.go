@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"git.kebcloud.no/keb/lazysecrets/internal/commands"
 	"git.kebcloud.no/keb/lazysecrets/internal/provider/repo"

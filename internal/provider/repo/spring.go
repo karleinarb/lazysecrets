@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Spring Boot config files: application*.properties/.yml and bootstrap*,
