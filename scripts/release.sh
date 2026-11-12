@@ -55,7 +55,7 @@ echo "$tag$bumped"
 
 notes=$(git cliff --unreleased --tag "$tag" --strip all)
 if ! grep -q '^- ' <<<"$notes"; then
-  echo "Nothing for the changelog since the last release (no feat/fix/perf pull requests)." >&2
+  echo "Nothing for the changelog since the last release (no feat/fix/perf or [security] pull requests)." >&2
   $dry || exit 1
 fi
 echo "$notes"

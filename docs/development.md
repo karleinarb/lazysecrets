@@ -35,6 +35,9 @@ subject, checked by `pr-title.yml`:
 | `fix` | a bug fix | Fixed |
 | `refactor`, `docs`, `test`, `ci`, `chore`, `build`, `style`, `revert` | everything users don't need to hear about | no |
 
+Renovate's dependency updates for a vulnerability (`[security]` in the
+title) are listed under Security.
+
 `feat!:` marks a breaking change, `feat(scope):` names a part.
 `[skip changelog]` in the description leaves a pull request out.
 
