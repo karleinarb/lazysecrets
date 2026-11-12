@@ -66,6 +66,6 @@ commit_parsers = [
   { message = "^feat", group = "<!-- 0 -->Added" },
   { message = "^perf", group = "<!-- 1 -->Changed" },
   { message = "^fix", group = "<!-- 2 -->Fixed" },
-  { message = "\\[security\\]", group = "<!-- 3 -->Security" },
+  { message = "^[^\\n]*\\[security\\]", group = "<!-- 3 -->Security" },
   { message = ".*", skip = true },
 ]
